@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/DashboardShell.qml</file>
+        <file>qml/MainShell.qml</file>
+        <file>qml/WidgetFactory.qml</file>
+        <file>qml/pages/DashboardDefault.qml</file>
+        <file>qml/widgets/TimeWidget.qml</file>
+        <file>qml/widgets/TachometerWidget.qml</file>
+        <file>qml/widgets/SpeedWidget.qml</file>
+        <file>qml/widgets/SpeedLimitWidget.qml</file>
+        <file>qml/widgets/FuelGaugeWidget.qml</file>
+        <file>qml/widgets/OdometerWidget.qml</file>
+        <file>qml/widgets/StatusBarWidget.qml</file>
+        <file>qml/widgets/WarningWidget.qml</file>
+        <file>qml/widgets/AppIcon.qml</file>
+        <file>qml/widgets/AppDock.qml</file>
+    </qresource>
+</RCC>

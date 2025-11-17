@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "home_page": "qrc:/qt/qml/SmartDashboard/qml/DashboardShell.qml",
+  "widgets": [
+    {"type": "speed", "x": 40, "y": 120},
+    {"type": "fuel", "x": 40, "y": 200},
+    {"type": "android-slot", "x": 320, "y": 120}
+  ]
+}
