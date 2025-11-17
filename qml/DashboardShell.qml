@@ -11,10 +11,13 @@ ApplicationWindow {
     title: "Smart Dashboard"
     color: "#101015"
 
-    // Waydroid 是否可用且有 app（避免 Waydroid 為 null）
-    property bool appsAvailable: typeof Waydroid !== "undefined"
-                                 && Waydroid !== null
-                                 && Waydroid.appsModel
+    // Waydroid 是否可用（避免 Waydroid 為 null）
+    property bool waydroidAvailable: typeof Waydroid !== "undefined"
+                                     && Waydroid !== null
+                                     && Waydroid.appsModel
+    
+    // Waydroid 是否有 app（用於隱藏 ODO/StatusBar）
+    property bool appsAvailable: waydroidAvailable
                                  && Waydroid.appsModel.count > 0
 
     // 背景漸層
@@ -114,11 +117,31 @@ ApplicationWindow {
     // ================== 底部 App Dock（Waydroid 有 app 時顯示） ==================
     AppDock {
         id: appDock
-        visible: appsAvailable
+        visible: appsAvailable  // 只有在有 app 時才顯示
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: 16
         height: 130
+    }
+
+    // 調試輸出（可以在 QML 控制台看到）
+    Component.onCompleted: {
+        console.log("DashboardShell loaded")
+        console.log("Waydroid available:", waydroidAvailable)
+        if (waydroidAvailable) {
+            console.log("Waydroid running:", Waydroid.running)
+            console.log("Apps count:", Waydroid.appsModel.count)
+            console.log("Apps available:", appsAvailable)
+            
+            // 監聽變化
+            Waydroid.runningChanged.connect(function() {
+                console.log("Waydroid running changed to:", Waydroid.running)
+            })
+            Waydroid.appsModel.countChanged.connect(function() {
+                console.log("Apps count changed to:", Waydroid.appsModel.count)
+                console.log("Apps available:", appsAvailable)
+            })
+        }
     }
 }

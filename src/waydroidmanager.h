@@ -5,6 +5,7 @@
 #include <QProcess>
 #include <QAbstractListModel>
 #include <QVector>
+#include <QDebug>
 
 struct AppEntry {
     QString label;
@@ -92,13 +93,25 @@ public slots:
             process->deleteLater();
             const bool newState = output.contains(QStringLiteral("RUNNING"), Qt::CaseInsensitive)
                                   || output.contains(QStringLiteral("Running: Yes"), Qt::CaseInsensitive);
+            
+            qDebug() << "WaydroidManager::checkStatus() - output:" << output.trimmed();
+            qDebug() << "WaydroidManager::checkStatus() - newState:" << newState << "current m_running:" << m_running;
+            
             if (newState != m_running) {
                 m_running = newState;
+                qDebug() << "WaydroidManager::checkStatus() - state changed to:" << m_running;
                 emit runningChanged();
-                if (m_running)
+                if (m_running) {
+                    qDebug() << "WaydroidManager::checkStatus() - calling refreshApps()";
                     refreshApps();
-                else
+                } else {
                     m_apps->setApps({});
+                }
+            } else if (m_running) {
+                // 即使狀態沒改變，如果 Waydroid 在運行，也定期刷新應用列表
+                // 這樣可以處理應用程式列表延遲載入的情況
+                qDebug() << "WaydroidManager::checkStatus() - Waydroid still running, refreshing apps";
+                refreshApps();
             }
         });
         process->start(QStringLiteral("waydroid"), {QStringLiteral("status")});
@@ -106,15 +119,26 @@ public slots:
 
     void refreshApps() {
         if (!m_running) {
+            qDebug() << "WaydroidManager::refreshApps() - Waydroid not running, clearing apps";
             m_apps->setApps({});
             return;
         }
 
+        qDebug() << "WaydroidManager::refreshApps() - fetching app list";
         auto *process = new QProcess(this);
-        connect(process, &QProcess::finished, this, [this, process](int, QProcess::ExitStatus) {
+        connect(process, &QProcess::finished, this, [this, process](int exitCode, QProcess::ExitStatus) {
             QVector<AppEntry> apps;
             const QString output = QString::fromUtf8(process->readAllStandardOutput());
+            const QString error = QString::fromUtf8(process->readAllStandardError());
             process->deleteLater();
+            
+            if (exitCode != 0) {
+                qWarning() << "WaydroidManager::refreshApps() - waydroid app list failed, exit code:" << exitCode;
+                qWarning() << "Error output:" << error;
+                return;
+            }
+            
+            qDebug() << "WaydroidManager::refreshApps() - output:" << output;
             const auto lines = output.split('\n', Qt::SkipEmptyParts);
             for (const QString &line : lines) {
                 const int sep = line.indexOf(QStringLiteral(" - "));
@@ -122,10 +146,13 @@ public slots:
                     AppEntry entry;
                     entry.package = line.left(sep).trimmed();
                     entry.label = line.mid(sep + 3).trimmed();
-                    if (!entry.package.isEmpty())
+                    if (!entry.package.isEmpty()) {
                         apps.push_back(std::move(entry));
+                        qDebug() << "WaydroidManager::refreshApps() - found app:" << entry.package << "-" << entry.label;
+                    }
                 }
             }
+            qDebug() << "WaydroidManager::refreshApps() - total apps:" << apps.size();
             m_apps->setApps(std::move(apps));
         });
         process->start(QStringLiteral("waydroid"), {QStringLiteral("app"), QStringLiteral("list")});
