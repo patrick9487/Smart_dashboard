@@ -139,19 +139,58 @@ public slots:
             }
             
             qDebug() << "WaydroidManager::refreshApps() - output:" << output;
-            const auto lines = output.split('\n', Qt::SkipEmptyParts);
+            
+            // 解析 waydroid app list 的輸出格式：
+            // Name: 電話
+            // packageName: com.google.android.dialer
+            // categories:
+            //     android.intent.category.LAUNCHER
+            // (空行分隔每個應用)
+            
+            const auto lines = output.split('\n', Qt::KeepEmptyParts);
+            QString currentName;
+            QString currentPackage;
+            
             for (const QString &line : lines) {
-                const int sep = line.indexOf(QStringLiteral(" - "));
-                if (sep > 0) {
-                    AppEntry entry;
-                    entry.package = line.left(sep).trimmed();
-                    entry.label = line.mid(sep + 3).trimmed();
-                    if (!entry.package.isEmpty()) {
+                const QString trimmed = line.trimmed();
+                
+                if (trimmed.startsWith(QStringLiteral("Name:"))) {
+                    // 如果之前有收集到完整的應用資訊，先保存
+                    if (!currentPackage.isEmpty() && !currentName.isEmpty()) {
+                        AppEntry entry;
+                        entry.package = currentPackage;
+                        entry.label = currentName;
                         apps.push_back(std::move(entry));
                         qDebug() << "WaydroidManager::refreshApps() - found app:" << entry.package << "-" << entry.label;
+                        currentName.clear();
+                        currentPackage.clear();
                     }
+                    // 提取應用名稱
+                    currentName = trimmed.mid(5).trimmed(); // "Name: " 之後的內容
+                } else if (trimmed.startsWith(QStringLiteral("packageName:"))) {
+                    // 提取包名
+                    currentPackage = trimmed.mid(12).trimmed(); // "packageName: " 之後的內容
+                } else if (trimmed.isEmpty() && !currentPackage.isEmpty() && !currentName.isEmpty()) {
+                    // 遇到空行且已有完整資訊，保存應用
+                    AppEntry entry;
+                    entry.package = currentPackage;
+                    entry.label = currentName;
+                    apps.push_back(std::move(entry));
+                    qDebug() << "WaydroidManager::refreshApps() - found app:" << entry.package << "-" << entry.label;
+                    currentName.clear();
+                    currentPackage.clear();
                 }
             }
+            
+            // 處理最後一個應用（如果沒有空行結尾）
+            if (!currentPackage.isEmpty() && !currentName.isEmpty()) {
+                AppEntry entry;
+                entry.package = currentPackage;
+                entry.label = currentName;
+                apps.push_back(std::move(entry));
+                qDebug() << "WaydroidManager::refreshApps() - found app:" << entry.package << "-" << entry.label;
+            }
+            
             qDebug() << "WaydroidManager::refreshApps() - total apps:" << apps.size();
             m_apps->setApps(std::move(apps));
         });
