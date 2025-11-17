@@ -105,8 +105,10 @@ CONFIG_DONE:;
     dumpQmlResources();
 
     // 4) 嘗試多個可能的 QML 載入路徑
+    // 根據實際資源路徑 :/SmartDashboard/qml/DashboardShell.qml
     QStringList possiblePaths = {
-        "qrc:/qt/qml/SmartDashboard/qml/DashboardShell.qml",  // qt_add_qml_module 標準路徑
+        "qrc:/SmartDashboard/qml/DashboardShell.qml",         // 實際資源路徑（Linux）
+        "qrc:/qt/qml/SmartDashboard/qml/DashboardShell.qml",  // qt_add_qml_module 標準路徑（macOS）
         "qrc:/qt/qml/SmartDashboard/DashboardShell.qml",      // 可能的路徑變體
         "qrc:/qml/DashboardShell.qml",                        // qml.qrc 路徑
         "qrc:/DashboardShell.qml"                             // 最簡單的路徑
