@@ -12,11 +12,42 @@
 
 static void dumpQmlResources()
 {
-    // 列出實際打包進去的 QML 資源，便於確認路徑是否正確
-    QDirIterator it(":/qt/qml/SmartDashboard", QDirIterator::Subdirectories);
-    qDebug() << "---- QML resources under :/qt/qml/SmartDashboard ----";
-    while (it.hasNext())
-        qDebug() << it.next();
+    // 列出所有可能的 QML 資源路徑，協助除錯
+    qDebug() << "---- 檢查 QML 資源路徑 ----";
+    
+    QStringList pathsToCheck = {
+        ":/qt/qml/SmartDashboard",
+        ":/qt/qml/SmartDashboard/qml",
+        ":/qml",
+        ":/"
+    };
+    
+    for (const QString &basePath : pathsToCheck) {
+        QDirIterator it(basePath, QDirIterator::Subdirectories);
+        bool found = false;
+        while (it.hasNext()) {
+            QString path = it.next();
+            if (path.contains("DashboardShell", Qt::CaseInsensitive)) {
+                qDebug() << "找到 DashboardShell:" << path;
+                found = true;
+            }
+        }
+        if (found) {
+            qDebug() << "在" << basePath << "找到資源";
+        }
+    }
+    
+    // 列出所有 :/ 下的資源
+    qDebug() << "---- 所有 :/ 資源 ----";
+    QDirIterator allIt(":/", QDirIterator::Subdirectories);
+    int count = 0;
+    while (allIt.hasNext() && count < 50) {
+        QString path = allIt.next();
+        if (path.contains("qml", Qt::CaseInsensitive) || path.contains("Dashboard", Qt::CaseInsensitive)) {
+            qDebug() << path;
+            count++;
+        }
+    }
     qDebug() << "------------------------------------------------------";
 }
 
@@ -70,18 +101,35 @@ CONFIG_DONE:;
                          }
                      }, Qt::QueuedConnection);
 
-    // 3)（可選）列印已打包的 QML 資源，協助確認路徑
+    // 3) 列印已打包的 QML 資源，協助確認路徑
     dumpQmlResources();
 
-    // 4) 統一用 qrc 路徑載入（對應 qt_add_qml_module 的 URI=SmartDashboard）
-    // qt_add_qml_module 會生成路徑：qrc:/qt/qml/{URI}/{QML_FILES的路徑}
-    // 因為 URI=SmartDashboard，QML_FILES 包含 qml/DashboardShell.qml
-    // 所以實際路徑是：qrc:/qt/qml/SmartDashboard/qml/DashboardShell.qml
-    const QUrl kHomeUrl(u"qrc:/qt/qml/SmartDashboard/qml/DashboardShell.qml"_qs);
-    engine.load(kHomeUrl);
+    // 4) 嘗試多個可能的 QML 載入路徑
+    QStringList possiblePaths = {
+        "qrc:/qt/qml/SmartDashboard/qml/DashboardShell.qml",  // qt_add_qml_module 標準路徑
+        "qrc:/qt/qml/SmartDashboard/DashboardShell.qml",      // 可能的路徑變體
+        "qrc:/qml/DashboardShell.qml",                        // qml.qrc 路徑
+        "qrc:/DashboardShell.qml"                             // 最簡單的路徑
+    };
 
-    if (engine.rootObjects().isEmpty())
+    bool loaded = false;
+    for (const QString &path : possiblePaths) {
+        const QUrl url(path);
+        qDebug() << "嘗試載入:" << path;
+        engine.load(url);
+        if (!engine.rootObjects().isEmpty()) {
+            qDebug() << "成功載入:" << path;
+            loaded = true;
+            break;
+        } else {
+            qWarning() << "載入失敗:" << path;
+        }
+    }
+
+    if (!loaded) {
+        qCritical() << "無法載入 DashboardShell.qml，已嘗試所有路徑";
         return -1;
+    }
 
     return app.exec();
 }
