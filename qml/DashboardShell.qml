@@ -65,8 +65,8 @@ ApplicationWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: timeWidget.bottom
         anchors.topMargin: window.height * 0.005
-        anchors.bottom: appsAvailable ? parent.bottom : odometer.top
-        anchors.bottomMargin: window.height * 0.05
+        anchors.bottom: appsAvailable ? appDock.top : odometer.top
+        anchors.bottomMargin: appsAvailable ? window.height * 0.05 : window.height * 0.05
 
         // 原本 0.5 太寬，改 0.8 留一點給左右條
         width: parent.width * 0.8
@@ -121,8 +121,10 @@ ApplicationWindow {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 16
-        height: 130
+        anchors.leftMargin: 0
+        anchors.rightMargin: 0
+        anchors.bottomMargin: 0
+        height: 140
     }
 
     // 調試輸出（可以在 QML 控制台看到）

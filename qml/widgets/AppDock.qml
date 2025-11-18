@@ -90,19 +90,22 @@ Item {
         anchors.right: parent.right
         anchors.bottom: shelf.bottom
         anchors.bottomMargin: 8
+        anchors.leftMargin: 16
+        anchors.rightMargin: 16
         height: 80
 
         contentWidth: row.width
         contentHeight: row.height
         clip: true
         interactive: contentWidth > width
+        boundsBehavior: Flickable.StopAtBounds  // 防止超出邊界時繼續滾動
 
         Row {
             id: row
             spacing: 24
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 8
-            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.leftMargin: 0
 
             Repeater {
                 model: waydroidAvailable ? Waydroid.appsModel : 0
@@ -119,12 +122,18 @@ Item {
             anchors.fill: parent
             acceptedButtons: Qt.NoButton   // 不攔截滑鼠按鍵，只處理滾輪
             hoverEnabled: true
+            propagateComposedEvents: false  // 阻止事件向上傳播
 
             onWheel: {
-                var delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.angleDelta.x;
-                // 調整速度係數讓手感自然一些
-                flick.contentX -= delta * 0.4;
-                wheel.accepted = true;
+                // 只處理水平滾動（angleDelta.x）或將垂直滾動轉為水平
+                var delta = wheel.angleDelta.x !== 0 ? wheel.angleDelta.x : wheel.angleDelta.y;
+                if (delta !== 0) {
+                    // 調整速度係數讓手感自然一些
+                    flick.contentX -= delta * 0.4;
+                    // 限制在有效範圍內
+                    flick.contentX = Math.max(0, Math.min(flick.contentX, flick.contentWidth - flick.width));
+                    wheel.accepted = true;  // 標記事件已處理，阻止向上傳播
+                }
             }
         }
     }
