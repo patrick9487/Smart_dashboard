@@ -110,8 +110,10 @@ ApplicationWindow {
         width: Math.min(height * 0.38, window.width * 0.14)
         anchors.left: speed.right
 
-        // 根據 speed 寬度決定距離，越寬越遠
-        anchors.leftMargin: Math.min(-180, -190 + speed.width * 0.000001)
+        // 初始時略微向左插入速度區塊，畫面變寬時慢慢往右「拉開」一點距離
+        property real baseOverlap: -width * 0.55                      // 基本向左重疊量（負值越大越往左）
+        property real extraGap: Math.min(40, Math.max(0, (window.width - 1100) * 0.06))
+        anchors.leftMargin: baseOverlap + extraGap
     }
 
     // ================== 底部 App Dock（Waydroid 有 app 時顯示） ==================
