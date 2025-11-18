@@ -123,8 +123,8 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
         anchors.leftMargin: 0
         anchors.rightMargin: 0
-        anchors.bottomMargin: 0
-        height: 140
+        anchors.bottomMargin: 16   // 與視窗底部保留一點空間
+        height: 150                // 稍微加高，讓 Dock 看起來更穩
     }
 
     // 調試輸出（可以在 QML 控制台看到）

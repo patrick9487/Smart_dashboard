@@ -83,7 +83,7 @@ Item {
         }
     }
 
-    // App 圖示列：貼在底欄上方，支援拖曳與滑鼠滾輪水平捲動
+    // App 圖示列：貼在底欄上方，支援滑鼠滾輪水平捲動
     Flickable {
         id: flick
         anchors.left: parent.left
@@ -92,7 +92,7 @@ Item {
         anchors.bottomMargin: 8
         anchors.leftMargin: 16
         anchors.rightMargin: 16
-        height: 80
+        height: 110    // 比圖示高一點，避免被裁切
 
         contentWidth: row.width
         contentHeight: row.height
@@ -103,7 +103,7 @@ Item {
         Row {
             id: row
             spacing: 24
-            anchors.top: parent.top
+            anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: 0
 
