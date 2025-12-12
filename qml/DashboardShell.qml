@@ -30,7 +30,9 @@ ApplicationWindow {
     property var currentSurface: null
     
     // 調試：顯示當前模式狀態（可在 UI 中顯示）
-    property string modeStatus: compositorMode ? "Compositor 模式" : "視窗疊加模式"
+    property string modeStatus: compositorMode ? 
+        ("Compositor 模式" + (surfaceModel.count > 0 ? " [有表面]" : " [無表面]")) : 
+        "視窗疊加模式"
     
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
     WaylandCompositor {
@@ -91,7 +93,7 @@ ApplicationWindow {
         anchors.rightMargin: 24
         anchors.top: parent.top
         anchors.topMargin: 5
-        text: modeStatus + (currentSurface ? " [有表面]" : " [無表面]")
+        text: modeStatus
         color: compositorMode ? "#4a9eff" : "#f7b35a"
         font.pixelSize: 12
         visible: true  // 可以設置為 false 來隱藏
