@@ -20,7 +20,7 @@
 class WindowEmbedItem : public QQuickItem {
     Q_OBJECT
     Q_PROPERTY(QWindow* window READ window WRITE setWindow NOTIFY windowChanged)
-    QML_ELEMENT
+    // 注意：不使用 QML_ELEMENT，因為我們在 main.cpp 中手動註冊
 
 public:
     explicit WindowEmbedItem(QQuickItem *parent = nullptr)
