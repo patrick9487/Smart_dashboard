@@ -19,6 +19,7 @@
 #include <QDebug>
 #include <QStandardPaths>
 #include <QDir>
+#include <QFileInfo>
 
 /**
  * DashboardWaylandCompositor
@@ -54,8 +55,7 @@ public:
         QString socketPath = runtimeDir + "/" + socketName;
         qDebug() << "DashboardWaylandCompositor: Creating socket at" << socketPath;
         
-        // 創建 compositor socket
-        // 注意：QWaylandCompositor 會自動創建 socket，但我們需要確保目錄存在
+        // 確保目錄存在
         QDir().mkpath(runtimeDir);
         
         // 創建 XDG Shell（現代 Wayland 應用使用）
@@ -68,22 +68,61 @@ public:
         // 注意：QWaylandWlShell 可能沒有 shellSurfaceCreated 信號
         // 我們通過 surfaceCreated 來處理所有表面
         
+        // 創建 Output（必需，compositor 需要 output 才能創建 socket）
+        m_output = new QWaylandOutput(this, this);
+        m_output->setSizeFollowsWindow(true);
+        
         // 監聽所有表面的創建
         connect(this, &QWaylandCompositor::surfaceCreated, this,
                 &DashboardWaylandCompositor::onSurfaceCreated);
         
+        // 創建 compositor socket
+        // 注意：必須在創建 output 之後調用 create()
+        // 設置 socket 名稱（在創建之前）
+        if (!socketName.isEmpty() && socketName != "wayland-0") {
+            // 嘗試設置自定義 socket 名稱
+            // 注意：QWaylandCompositor 可能不支持自定義 socket 名稱
+            // 我們使用環境變量來指定 socket 名稱
+            qputenv("WAYLAND_DISPLAY", socketName.toUtf8());
+        }
+        
+        if (!create()) {
+            qWarning() << "DashboardWaylandCompositor: Failed to create compositor socket";
+            qWarning() << "DashboardWaylandCompositor: Check XDG_RUNTIME_DIR:" << runtimeDir;
+            qWarning() << "DashboardWaylandCompositor: Make sure the directory exists and is writable";
+        } else {
+            QString actualSocketName = QWaylandCompositor::socketName();
+            if (actualSocketName.isEmpty()) {
+                actualSocketName = socketName; // 使用我們設置的名稱
+            }
+            QString actualSocketPath = runtimeDir + "/" + actualSocketName;
+            qDebug() << "DashboardWaylandCompositor: Socket created successfully";
+            qDebug() << "DashboardWaylandCompositor: Socket name:" << actualSocketName;
+            qDebug() << "DashboardWaylandCompositor: Socket path:" << actualSocketPath;
+            
+            // 驗證 socket 文件是否存在
+            QFileInfo socketFile(actualSocketPath);
+            if (socketFile.exists()) {
+                qDebug() << "DashboardWaylandCompositor: ✓ Socket file exists:" << actualSocketPath;
+            } else {
+                qWarning() << "DashboardWaylandCompositor: ✗ Socket file not found:" << actualSocketPath;
+                qWarning() << "DashboardWaylandCompositor: Please check if the socket was created with a different name";
+            }
+        }
+        
         qDebug() << "DashboardWaylandCompositor: Initialized";
-        qDebug() << "DashboardWaylandCompositor: Socket name:" << socketName;
-        qDebug() << "DashboardWaylandCompositor: Runtime dir:" << runtimeDir;
     }
     
     // 獲取 socket 名稱
     Q_INVOKABLE QString socketName() const {
-        QString socketName = qEnvironmentVariable("WAYLAND_DISPLAY", "wayland-smartdashboard-0");
-        if (socketName.isEmpty()) {
-            return "wayland-smartdashboard-0";
+        // 使用基類的方法獲取實際創建的 socket 名稱
+        QString actualSocket = QWaylandCompositor::socketName();
+        if (!actualSocket.isEmpty()) {
+            return actualSocket;
         }
-        return socketName;
+        // 如果基類沒有返回，使用環境變量或默認值
+        QString envSocket = qEnvironmentVariable("WAYLAND_DISPLAY", "wayland-smartdashboard-0");
+        return envSocket.isEmpty() ? "wayland-smartdashboard-0" : envSocket;
     }
 
     QWaylandXdgShell* xdgShell() const { return m_xdgShell; }
@@ -300,6 +339,7 @@ private slots:
 private:
     QWaylandXdgShell *m_xdgShell = nullptr;
     QWaylandWlShell *m_wlShell = nullptr;
+    QWaylandOutput *m_output = nullptr; // Output 必需，compositor 需要它來創建 socket
     QList<QWaylandSurface*> m_surfaces;
     QList<QWaylandXdgSurface*> m_xdgSurfaces;
     QHash<QString, QWaylandSurface*> m_packageToSurface; // 包名到表面的映射
