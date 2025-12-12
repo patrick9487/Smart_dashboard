@@ -67,10 +67,14 @@ public:
     
     // 根據包名查找對應的表面（如果還沒找到，會等待表面創建）
     Q_INVOKABLE QWaylandSurface* findSurfaceByPackage(const QString &packageName) {
+        qDebug() << "========================================";
+        qDebug() << "🔍 DashboardWaylandCompositor: Finding surface for package:" << packageName;
+        
         // 首先檢查已註冊的映射
         if (m_packageToSurface.contains(packageName)) {
             QWaylandSurface *surface = m_packageToSurface[packageName];
             if (surface && hasSurfaceContent(surface)) {
+                qDebug() << "✅ Found surface in registered mapping";
                 return surface;
             }
         }
@@ -78,7 +82,8 @@ public:
         // 如果沒有找到，添加到待匹配列表
         if (!m_pendingPackages.contains(packageName)) {
             m_pendingPackages.append(packageName);
-            qDebug() << "DashboardWaylandCompositor: Added package to pending list:" << packageName;
+            qDebug() << "📝 Added package to pending list:" << packageName;
+            qDebug() << "   Pending packages:" << m_pendingPackages;
         }
         
         // 嘗試立即匹配（如果表面已經存在）
@@ -89,28 +94,34 @@ public:
                 searchTerm = parts.last();
             }
         }
+        qDebug() << "   Search term:" << searchTerm;
+        qDebug() << "   Total surfaces:" << m_surfaces.size();
+        qDebug() << "   XDG surfaces:" << m_xdgSurfaces.size();
         
         for (auto *surface : m_surfaces) {
-            if (!hasSurfaceContent(surface)) continue;
+            if (!hasSurfaceContent(surface)) {
+                qDebug() << "   Skipping surface (no content)";
+                continue;
+            }
             
             // 檢查 XDG Surface
             for (auto *xdgSurface : m_xdgSurfaces) {
                 if (xdgSurface->surface() == surface && xdgSurface->toplevel()) {
                     QString title = xdgSurface->toplevel()->title();
+                    qDebug() << "   Checking XDG Surface, title:" << title;
                     if (title.contains(searchTerm, Qt::CaseInsensitive) || 
                         title.contains(packageName, Qt::CaseInsensitive)) {
+                        qDebug() << "✅ Matched XDG Surface to package:" << packageName;
                         m_packageToSurface[packageName] = surface;
                         m_pendingPackages.removeAll(packageName);
                         return surface;
                     }
                 }
             }
-            
-            // 檢查 WL Shell Surface（通過查找關聯的表面）
-            // 注意：由於無法直接獲取 WL Shell Surface，我們跳過這個檢查
-            // 主要依賴 XDG Shell 來匹配表面
         }
         
+        qDebug() << "⏳ No surface found yet, waiting for surface creation...";
+        qDebug() << "========================================";
         return nullptr; // 還沒找到，等待表面創建
     }
     
@@ -133,8 +144,11 @@ signals:
 
 private slots:
     void onSurfaceCreated(QWaylandSurface *surface) {
-        qDebug() << "DashboardWaylandCompositor: Surface created";
+        qDebug() << "========================================";
+        qDebug() << "🔵 DashboardWaylandCompositor: Surface created";
+        qDebug() << "   Surface pointer:" << surface;
         m_surfaces.append(surface);
+        qDebug() << "   Total surfaces:" << m_surfaces.size();
         
         // 監聽表面銷毀
         connect(surface, &QObject::destroyed, this, [this, surface]() {
@@ -148,10 +162,33 @@ private slots:
         QTimer *checkTimer = new QTimer(this);
         checkTimer->setSingleShot(false);
         checkTimer->setInterval(100); // 每 100ms 檢查一次
-        connect(checkTimer, &QTimer::timeout, this, [this, surface, checkTimer]() {
-            if (hasSurfaceContent(surface)) {
-                qDebug() << "DashboardWaylandCompositor: Surface mapped (has content)";
+        int checkCount = 0;
+        connect(checkTimer, &QTimer::timeout, this, [this, surface, checkTimer, &checkCount]() {
+            checkCount++;
+            bool hasContent = hasSurfaceContent(surface);
+            qDebug() << "   Checking surface content (attempt" << checkCount << "):" << hasContent;
+            
+            if (hasContent) {
+                qDebug() << "🟢 DashboardWaylandCompositor: Surface mapped (has content)";
                 emit surfaceMapped(surface);
+                checkTimer->stop();
+                checkTimer->deleteLater();
+                
+                // 嘗試匹配到待匹配的包名
+                if (!m_pendingPackages.isEmpty()) {
+                    qDebug() << "   Trying to match surface to pending packages:" << m_pendingPackages;
+                    // 檢查是否有 XDG Surface 關聯
+                    for (auto *xdgSurface : m_xdgSurfaces) {
+                        if (xdgSurface->surface() == surface && xdgSurface->toplevel()) {
+                            QString title = xdgSurface->toplevel()->title();
+                            qDebug() << "   XDG Surface title:" << title;
+                            matchSurfaceToPackage(surface, title);
+                        }
+                    }
+                }
+            } else if (checkCount > 50) {
+                // 10 秒後停止檢查
+                qDebug() << "   Surface check timeout after 10 seconds";
                 checkTimer->stop();
                 checkTimer->deleteLater();
             }
@@ -162,12 +199,14 @@ private slots:
         if (hasSurfaceContent(surface)) {
             checkTimer->stop();
             checkTimer->deleteLater();
+            qDebug() << "🟢 DashboardWaylandCompositor: Surface already has content";
             QTimer::singleShot(0, this, [this, surface]() {
                 emit surfaceMapped(surface);
             });
         }
         
         emit surfaceCreated(surface);
+        qDebug() << "========================================";
     }
     
     void onXdgToplevelCreated(QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *xdgSurface) {

@@ -26,6 +26,9 @@ ApplicationWindow {
     // Compositor 模式相關屬性
     property bool compositorMode: typeof Compositor !== "undefined" && Compositor !== null
     property var currentSurface: null
+    
+    // 調試：顯示當前模式狀態（可在 UI 中顯示）
+    property string modeStatus: compositorMode ? "Compositor 模式" : "視窗疊加模式"
 
     // 背景漸層
     Rectangle {
@@ -44,6 +47,19 @@ ApplicationWindow {
         anchors.leftMargin: 24
         anchors.top: parent.top
         anchors.topMargin: 5
+    }
+    
+    // 調試：顯示當前模式（右上角）
+    Text {
+        id: modeIndicator
+        anchors.right: parent.right
+        anchors.rightMargin: 24
+        anchors.top: parent.top
+        anchors.topMargin: 5
+        text: modeStatus + (currentSurface ? " [有表面]" : " [無表面]")
+        color: compositorMode ? "#4a9eff" : "#f7b35a"
+        font.pixelSize: 12
+        visible: true  // 可以設置為 false 來隱藏
     }
 
     // 底部狀態列（Waydroid 有 app 時隱藏）
@@ -237,8 +253,32 @@ ApplicationWindow {
 
     // 調試輸出（可以在 QML 控制台看到）
     Component.onCompleted: {
+        console.log("========================================")
         console.log("DashboardShell loaded")
         console.log("Waydroid available:", waydroidAvailable)
+        console.log("Compositor mode:", compositorMode)
+        console.log("Compositor object:", typeof Compositor !== "undefined" ? "exists" : "undefined")
+        
+        if (compositorMode && typeof Compositor !== "undefined") {
+            console.log("✓ Compositor 模式已啟用")
+            console.log("Compositor XDG Shell:", Compositor.xdgShell ? "exists" : "null")
+            console.log("Compositor WL Shell:", Compositor.wlShell ? "exists" : "null")
+            
+            // 監聽表面創建
+            Compositor.surfaceCreated.connect(function(surface) {
+                console.log("🔵 Compositor: New surface created")
+            })
+            Compositor.surfaceMapped.connect(function(surface) {
+                console.log("🟢 Compositor: Surface mapped")
+            })
+            Compositor.surfaceMatchedToPackage.connect(function(pkg, surface) {
+                console.log("✅ Compositor: Surface matched to package:", pkg)
+            })
+        } else {
+            console.log("⚠ Compositor 模式未啟用 - 使用視窗疊加模式")
+            console.log("提示：設置環境變量 SMART_DASHBOARD_COMPOSITOR=1 來啟用")
+        }
+        
         if (waydroidAvailable) {
             console.log("Waydroid running:", Waydroid.running)
             console.log("Apps count:", Waydroid.appsModel.count)
@@ -253,5 +293,6 @@ ApplicationWindow {
                 console.log("Apps available:", appsAvailable)
             })
         }
+        console.log("========================================")
     }
 }
