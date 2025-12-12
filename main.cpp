@@ -128,7 +128,7 @@ CONFIG_DONE:;
     
     // 創建 Wayland Compositor 實例（可選，需要環境變量啟用）
     // 注意：啟用 compositor 模式需要設置 WAYLAND_DISPLAY 環境變量
-    bool useCompositorMode = qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR");
+    // useCompositorMode 已在函數開始處聲明
     DashboardWaylandCompositor *compositor = nullptr;
     
     if (useCompositorMode) {
