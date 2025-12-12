@@ -42,6 +42,9 @@ ApplicationWindow {
             id: output
             sizeFollowsWindow: true
             window: window  // 連接到 ApplicationWindow
+            
+            // 設置輸出模式，避免輸入問題
+            // 這可以幫助解決雙滑鼠游標的問題
         }
         
         // 用 ListModel 來保存 surface，讓 Repeater 能正確感知 model 變化
@@ -224,10 +227,10 @@ ApplicationWindow {
     }
     
     // ================== 嵌入的應用視窗區域 ==================
-    // Compositor 模式：真正的表面嵌入
+    // Compositor 模式：真正的表面嵌入（參考 dashboard_compositor 專案）
     // 使用 Repeater 顯示所有表面
     Repeater {
-        model: compositorMode ? waylandCompositor.surfaces : 0
+        model: compositorMode ? surfaceModel : 0
         delegate: WaylandQuickItem {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -237,8 +240,12 @@ ApplicationWindow {
             anchors.bottomMargin: 20
             anchors.leftMargin: 40
             anchors.rightMargin: 40
-            surface: modelData
-            visible: compositorMode && modelData
+            surface: model.surface
+            visible: compositorMode && model.surface
+            
+            // 設置輸入處理，避免雙滑鼠游標問題
+            // WaylandQuickItem 會自動處理輸入事件，但我們需要確保它正確啟用
+            enabled: true
         }
     }
     
