@@ -17,7 +17,7 @@
 class SurfaceItem : public QWaylandQuickItem {
     Q_OBJECT
     Q_PROPERTY(QWaylandSurface* surface READ surface WRITE setSurface NOTIFY surfaceChanged)
-    QML_ELEMENT
+    // 注意：不使用 QML_ELEMENT，因為我們在 main.cpp 中手動註冊
 
 public:
     explicit SurfaceItem(QQuickItem *parent = nullptr)
