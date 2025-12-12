@@ -59,23 +59,23 @@ int main(int argc, char *argv[])
     // 檢查是否啟用 compositor 模式
     bool useCompositorMode = qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR");
     
-    // 如果啟用 compositor 模式，確保 Qt 應用可以連接到顯示服務器
-    // 注意：Qt 應用本身需要連接到系統的顯示服務器（Wayland 或 X11）
-    // 然後創建嵌套的 compositor
+    // 如果啟用 compositor 模式，設置 socket 名稱
+    // 參考 dashboard_compositor 專案：使用 QT_WAYLAND_COMPOSITOR_SOCKET_NAME 環境變量
     if (useCompositorMode) {
+        QString socketName = qEnvironmentVariable("WAYLAND_DISPLAY", "wayland-smartdashboard-0");
+        if (socketName.isEmpty()) {
+            socketName = "wayland-smartdashboard-0";
+        }
+        // 設置 Qt Wayland Compositor 的 socket 名稱
+        qputenv("QT_WAYLAND_COMPOSITOR_SOCKET_NAME", socketName.toUtf8());
+        qDebug() << "啟用 Compositor 模式，設置 socket 名稱:" << socketName;
+        
         // 確保 XDG_RUNTIME_DIR 已設置
         QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
         if (runtimeDir.isEmpty()) {
             runtimeDir = QDir::tempPath();
             qputenv("XDG_RUNTIME_DIR", runtimeDir.toUtf8());
             qDebug() << "Set XDG_RUNTIME_DIR to:" << runtimeDir;
-        }
-        
-        // 如果沒有設置 WAYLAND_DISPLAY，嘗試使用系統的 Wayland
-        // 但這不會影響我們創建的嵌套 compositor
-        if (!qEnvironmentVariableIsSet("WAYLAND_DISPLAY")) {
-            // 不設置，讓 Qt 使用默認的顯示服務器
-            qDebug() << "WAYLAND_DISPLAY not set, Qt will use default display server";
         }
     }
     
@@ -126,15 +126,10 @@ CONFIG_DONE:;
     qmlRegisterType<DashboardWaylandCompositor>("SmartDashboard", 1, 0, "WaylandCompositor");
     qmlRegisterType<SurfaceItem>("SmartDashboard", 1, 0, "SurfaceItem");
     
-    // 創建 Wayland Compositor 實例（可選，需要環境變量啟用）
-    // 注意：啟用 compositor 模式需要設置 WAYLAND_DISPLAY 環境變量
-    // useCompositorMode 已在函數開始處聲明
-    DashboardWaylandCompositor *compositor = nullptr;
-    
+    // 注意：如果啟用 compositor 模式，我們將在 QML 中使用 WaylandCompositor（QtWayland.Compositor）
+    // 而不是在 C++ 中創建。這樣更簡單且更符合 Qt 的最佳實踐。
     if (useCompositorMode) {
-        qDebug() << "啟用 Wayland Compositor 模式";
-        compositor = new DashboardWaylandCompositor(&app);
-        engine.rootContext()->setContextProperty("Compositor", compositor);
+        qDebug() << "啟用 Wayland Compositor 模式（使用 QML WaylandCompositor）";
     } else {
         qDebug() << "使用標準模式（視窗疊加）";
         qDebug() << "提示：設置環境變量 SMART_DASHBOARD_COMPOSITOR=1 來啟用 compositor 模式";

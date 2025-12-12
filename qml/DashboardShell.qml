@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtWayland.Compositor
 import "widgets"
 
 ApplicationWindow {
@@ -24,11 +25,42 @@ ApplicationWindow {
     property var currentEmbedder: null
     
     // Compositor 模式相關屬性
-    property bool compositorMode: typeof Compositor !== "undefined" && Compositor !== null
+    property bool compositorMode: typeof compositor !== "undefined" && compositor !== null
     property var currentSurface: null
     
     // 調試：顯示當前模式狀態（可在 UI 中顯示）
     property string modeStatus: compositorMode ? "Compositor 模式" : "視窗疊加模式"
+    
+    // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
+    WaylandCompositor {
+        id: compositor
+        visible: false  // Compositor 本身不可見
+        socketName: "wayland-smartdashboard-0"
+        
+        // 創建 WaylandOutput 並連接到我們的 ApplicationWindow
+        // 參考專案：WaylandOutput 需要一個 Window，我們使用現有的 ApplicationWindow
+        WaylandOutput {
+            id: output
+            sizeFollowsWindow: true
+            window: window  // 連接到 ApplicationWindow
+        }
+        
+        // 用 ListModel 來保存 surface，讓 Repeater 能正確感知 model 變化
+        // 參考專案的做法
+        ListModel {
+            id: surfaceModel
+        }
+        
+        // 監聽表面創建
+        onSurfaceCreated: function(surface) {
+            console.log("🔵 WaylandCompositor: New surface created")
+            surfaceModel.append({ surface: surface })
+            // 如果還沒有當前表面，設置第一個表面為當前表面
+            if (!currentSurface) {
+                currentSurface = surface
+            }
+        }
+    }
 
     // 背景漸層
     Rectangle {
@@ -156,45 +188,17 @@ ApplicationWindow {
             console.log("DashboardShell: App clicked, package:", packageName)
             console.log("DashboardShell: Compositor mode:", compositorMode)
             
-            if (compositorMode && typeof Compositor !== "undefined" && Compositor !== null) {
-                // Compositor 模式：查找對應的表面
-                console.log("DashboardShell: Using compositor mode, finding surface for package:", packageName)
-                
-                // 先嘗試立即查找
-                currentSurface = Compositor.findSurfaceByPackage(packageName)
-                if (currentSurface) {
-                    console.log("DashboardShell: Surface found immediately")
-                } else {
-                    console.log("DashboardShell: Surface not found yet, waiting for surface creation...")
-                    
-                    // 監聽表面匹配事件（當表面與包名匹配時觸發）
-                    var matchHandler = function(pkg, surface) {
-                        if (pkg === packageName) {
-                            console.log("DashboardShell: Surface matched to package:", packageName)
-                            currentSurface = surface
-                            // 移除監聽器（只處理一次）
-                            Compositor.surfaceMatchedToPackage.disconnect(matchHandler)
-                        }
-                    }
-                    Compositor.surfaceMatchedToPackage.connect(matchHandler)
-                    
-                    // 也監聽表面創建事件（作為備用）
-                    var createHandler = function(surface) {
-                        console.log("DashboardShell: New surface created, trying to find match...")
-                        // 再次嘗試查找
-                        var found = Compositor.findSurfaceByPackage(packageName)
-                        if (found) {
-                            currentSurface = found
-                            Compositor.surfaceCreated.disconnect(createHandler)
-                        }
-                    }
-                    Compositor.surfaceCreated.connect(createHandler)
-                }
+            if (compositorMode && waylandCompositor) {
+                // Compositor 模式：啟動應用並等待表面創建
+                console.log("DashboardShell: Using compositor mode, launching app:", packageName)
                 
                 // 啟動應用（應用會連接到我們的 compositor）
                 if (waydroidAvailable) {
                     console.log("DashboardShell: Launching app in compositor mode...")
                     Waydroid.launchApp(packageName)
+                    
+                    // 等待表面創建（通過監聽 surfaceCreated 信號）
+                    // 當表面創建時，waylandCompositor 會自動處理
                 }
             } else {
                 // 視窗疊加模式
@@ -222,18 +226,21 @@ ApplicationWindow {
     
     // ================== 嵌入的應用視窗區域 ==================
     // Compositor 模式：真正的表面嵌入
-    CompositorSurfaceEmbed {
-        id: compositorEmbed
-        visible: compositorMode && currentSurface !== null
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: timeWidget.bottom
-        anchors.topMargin: 20
-        anchors.bottom: speed.top
-        anchors.bottomMargin: 20
-        anchors.leftMargin: 40
-        anchors.rightMargin: 40
-        surface: currentSurface
+    // 使用 Repeater 顯示所有表面
+    Repeater {
+        model: compositorMode ? waylandCompositor.surfaces : 0
+        delegate: WaylandQuickItem {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: timeWidget.bottom
+            anchors.topMargin: 20
+            anchors.bottom: speed.top
+            anchors.bottomMargin: 20
+            anchors.leftMargin: 40
+            anchors.rightMargin: 40
+            surface: modelData
+            visible: compositorMode && modelData
+        }
     }
     
     // 視窗疊加模式：當 compositor 模式未啟用時使用
@@ -259,35 +266,10 @@ ApplicationWindow {
         console.log("Compositor mode:", compositorMode)
         console.log("Compositor object:", typeof Compositor !== "undefined" ? "exists" : "undefined")
         
-        if (compositorMode && typeof Compositor !== "undefined") {
+        if (compositorMode && compositor) {
             console.log("✓ Compositor 模式已啟用")
-            console.log("Compositor XDG Shell:", Compositor.xdgShell ? "exists" : "null")
-            console.log("Compositor WL Shell:", Compositor.wlShell ? "exists" : "null")
-            console.log("Compositor Socket Name:", Compositor.socketName())
-            
-            // 設置 output window（compositor 需要 window 才能創建 socket）
-            if (window && window.contentItem && window.contentItem.window) {
-                var qmlWindow = window.contentItem.window
-                console.log("Setting output window for compositor")
-                Compositor.setOutputWindow(qmlWindow)
-            } else {
-                // 嘗試使用 ApplicationWindow 的 window 屬性
-                console.log("Trying to get window from ApplicationWindow")
-                if (window) {
-                    Compositor.setOutputWindow(window)
-                }
-            }
-            
-            // 監聽表面創建
-            Compositor.surfaceCreated.connect(function(surface) {
-                console.log("🔵 Compositor: New surface created")
-            })
-            Compositor.surfaceMapped.connect(function(surface) {
-                console.log("🟢 Compositor: Surface mapped")
-            })
-            Compositor.surfaceMatchedToPackage.connect(function(pkg, surface) {
-                console.log("✅ Compositor: Surface matched to package:", pkg)
-            })
+            console.log("Compositor Socket Name:", compositor.socketName)
+            console.log("Compositor created, waiting for surfaces...")
         } else {
             console.log("⚠ Compositor 模式未啟用 - 使用視窗疊加模式")
             console.log("提示：設置環境變量 SMART_DASHBOARD_COMPOSITOR=1 來啟用")
