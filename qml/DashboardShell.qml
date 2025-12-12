@@ -45,27 +45,34 @@ ApplicationWindow {
             id: output
             sizeFollowsWindow: true
             window: window  // 連接到 ApplicationWindow
-            
-            // 設置輸出模式，避免輸入問題
-            // 這可以幫助解決雙滑鼠游標的問題
         }
         
         // 用 ListModel 來保存 surface，讓 Repeater 能正確感知 model 變化
         // 參考專案的做法
         ListModel {
-            id: surfaceModel
+            id: compositorSurfaceModel
         }
         
         // 監聽表面創建
         onSurfaceCreated: function(surface) {
             console.log("🔵 WaylandCompositor: New surface created")
-            surfaceModel.append({ surface: surface })
+            console.log("  Surface object:", surface)
+            console.log("  Current compositorSurfaceModel count:", compositorSurfaceModel.count)
+            compositorSurfaceModel.append({ surface: surface })
+            console.log("  After append, compositorSurfaceModel count:", compositorSurfaceModel.count)
             // 如果還沒有當前表面，設置第一個表面為當前表面
             if (!currentSurface) {
                 currentSurface = surface
+                console.log("  Set as current surface")
             }
         }
     }
+    
+    // 將 surfaceModel 暴露到外部，方便訪問
+    property alias surfaceModel: compositor.compositorSurfaceModel
+    
+    // 將 surfaceModel 暴露到外部，方便訪問
+    property alias surfaceModel: compositor.surfaceModel
 
     // 背景漸層
     Rectangle {
