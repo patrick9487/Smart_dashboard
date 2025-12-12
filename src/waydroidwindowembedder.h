@@ -153,7 +153,7 @@ private:
         // 注意：這需要視窗系統支持（X11 或 Wayland）
         m_window = QWindow::fromWinId(winId);
         if (m_window) {
-            m_window->setParent(this);
+            // 不設置 parent，讓視窗獨立管理
             // 設置視窗標誌，使其適合嵌入
             m_window->setFlags(Qt::FramelessWindowHint);
             m_embedded = true;

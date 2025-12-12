@@ -83,8 +83,8 @@ protected:
         // 獲取 Item 在場景中的全局位置
         QPointF globalPos = mapToScene(QPointF(0, 0));
         
-        // 獲取主視窗
-        QQuickWindow *quickWindow = window();
+        // 獲取主視窗（使用 QQuickItem::window() 獲取 QQuickWindow）
+        QQuickWindow *quickWindow = QQuickItem::window();
         if (!quickWindow) {
             return;
         }
