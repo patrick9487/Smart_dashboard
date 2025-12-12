@@ -15,7 +15,7 @@ Item {
     id: root
     
     property var surface: null
-    property bool showPlaceholder: !surface || !(surface && surface.size && surface.size.isValid())
+    property bool showPlaceholder: !surface || !(surface && surface.hasContent)
     
     // 佔位符：當表面尚未映射時顯示
     Rectangle {
@@ -72,14 +72,11 @@ Item {
         visible: !showPlaceholder && surface
         surface: root.surface
         
-        // 當表面大小改變時，自動調整 Item 大小
+        // 當表面提交新內容時，更新顯示
         Connections {
             target: surface
-            function onSizeChanged() {
-                if (surface && surface.size.isValid()) {
-                    root.width = surface.size.width
-                    root.height = surface.size.height
-                }
+            function onCommitted() {
+                console.log("CompositorSurfaceEmbed: Surface committed, has content:", surface ? surface.hasContent : false)
             }
         }
     }
@@ -87,9 +84,9 @@ Item {
     // 監聽表面狀態變化
     Connections {
         target: surface
-        function onSizeChanged() {
-            var hasContent = surface && surface.size && surface.size.isValid()
-            console.log("CompositorSurfaceEmbed: Surface size changed, has content:", hasContent)
+        function onCommitted() {
+            var hasContent = surface && surface.hasContent
+            console.log("CompositorSurfaceEmbed: Surface committed, has content:", hasContent)
         }
     }
 }

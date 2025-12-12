@@ -136,10 +136,11 @@ private slots:
         qDebug() << "DashboardWaylandCompositor: Surface created";
         m_surfaces.append(surface);
         
-        // 監聽表面大小變化來判斷是否已映射
-        connect(surface, &QWaylandSurface::sizeChanged, this, [this, surface]() {
+        // 監聽表面提交事件來判斷是否已映射
+        // QWaylandSurface 有 committed 信號，當表面提交新內容時觸發
+        connect(surface, &QWaylandSurface::committed, this, [this, surface]() {
             if (hasSurfaceContent(surface)) {
-                qDebug() << "DashboardWaylandCompositor: Surface mapped (size changed)";
+                qDebug() << "DashboardWaylandCompositor: Surface mapped (committed)";
                 emit surfaceMapped(surface);
             }
         });
@@ -212,9 +213,9 @@ private slots:
     // 檢查表面是否有內容（替代 isMapped）
     bool hasSurfaceContent(QWaylandSurface *surface) const {
         if (!surface) return false;
-        // 檢查表面大小是否有效
-        QSize size = surface->size();
-        return size.isValid() && !size.isEmpty();
+        // 檢查表面是否有緩衝區（buffer）
+        // 如果有緩衝區，說明表面已經有內容
+        return surface->hasContent();
     }
 
 private:
