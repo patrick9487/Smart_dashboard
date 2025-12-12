@@ -144,7 +144,9 @@ ApplicationWindow {
                 // 創建新的嵌入器
                 currentEmbedder = Waydroid.createWindowEmbedder(packageName)
                 if (currentEmbedder) {
-                    console.log("DashboardShell: Embedder created successfully")
+                    console.log("DashboardShell: Embedder created successfully, starting embedding...")
+                    // 啟動嵌入過程（這會啟動應用並開始查找視窗）
+                    currentEmbedder.startEmbedding()
                 } else {
                     console.error("DashboardShell: Failed to create embedder")
                 }

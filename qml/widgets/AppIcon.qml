@@ -54,12 +54,8 @@ Item {
         enabled: root.enabled
         onClicked: {
             if (root.enabled && root.packageId.length > 0) {
-                // 發出信號，讓父組件處理（用於嵌入模式）
+                // 發出信號，讓父組件處理（嵌入模式會負責啟動應用）
                 root.appClicked(root.packageId)
-                // 同時也啟動應用（如果需要在獨立視窗中運行）
-                if (typeof Waydroid !== "undefined" && Waydroid !== null) {
-                    Waydroid.launchApp(root.packageId);
-                }
             }
         }
         onPressedChanged: tile.color = pressed ? "#2a2f3c" : (enabled ? "#1f222a" : "#2a2d33")

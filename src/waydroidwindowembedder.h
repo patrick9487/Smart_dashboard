@@ -68,6 +68,9 @@ public:
 
         qDebug() << "WaydroidWindowEmbedder: Starting embedding for" << m_packageName;
         
+        // 重置嘗試計數
+        m_attemptCount = 0;
+        
         // 啟動應用
         QProcess::startDetached("waydroid", {"app", "launch", m_packageName});
         
@@ -77,6 +80,7 @@ public:
 
     Q_INVOKABLE void stopEmbedding() {
         m_checkTimer.stop();
+        m_attemptCount = 0;
         if (m_window) {
             m_window->deleteLater();
             m_window = nullptr;
@@ -94,10 +98,24 @@ signals:
 private slots:
     void tryFindAndEmbed() {
 #ifdef Q_OS_LINUX
-        // 在 Linux 上，嘗試通過 xdotool 或 wmctrl 查找視窗
-        // 注意：這需要系統安裝 xdotool 或 wmctrl
+        // 在 Linux 上，嘗試通過多種方法查找 Waydroid 應用視窗
+        // 注意：這需要系統安裝 xdotool
         
-        // 方法 1: 使用 xdotool 查找視窗（推薦，更精確）
+        if (!m_embedded) {
+            m_attemptCount++;
+            if (m_attemptCount > 20) { // 10 秒 = 20 * 500ms
+                m_checkTimer.stop();
+                m_attemptCount = 0;
+                qWarning() << "WaydroidWindowEmbedder: Failed to find window after 10 seconds for" << m_packageName;
+                return;
+            }
+        } else {
+            m_checkTimer.stop();
+            m_attemptCount = 0;
+            return;
+        }
+        
+        // 使用 xdotool 查找視窗（嘗試多種搜索方式）
         QProcess *proc = new QProcess(this);
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this, proc](int exitCode, QProcess::ExitStatus) {
@@ -108,7 +126,9 @@ private slots:
                     bool ok;
                     WId winId = winIdStr.toULongLong(&ok, 16); // 十六進制
                     if (ok && winId != 0) {
+                        qDebug() << "WaydroidWindowEmbedder: Found window ID:" << QString::number(winId, 16);
                         embedWindow(winId);
+                        m_attemptCount = 0;
                         break; // 找到第一個就嵌入
                     }
                 }
@@ -116,22 +136,27 @@ private slots:
             proc->deleteLater();
         });
         
-        // 嘗試使用 xdotool 查找視窗
-        // 查找標題或類名包含包名的視窗
-        proc->start("xdotool", {"search", "--class", m_packageName});
-        
-        // 如果 5 秒後還沒找到，停止檢查
-        static int attempts = 0;
-        if (!m_embedded) {
-            attempts++;
-            if (attempts > 10) { // 5 秒 = 10 * 500ms
-                m_checkTimer.stop();
-                attempts = 0;
-                qWarning() << "WaydroidWindowEmbedder: Failed to find window after 5 seconds for" << m_packageName;
+        // 先嘗試按類名和標題搜索（最常見的方式）
+        // Waydroid 應用的視窗類名通常是 "waydroid" 或包名的一部分
+        QString searchTerm = m_packageName;
+        // 如果包名很長，嘗試使用最後一部分
+        if (searchTerm.contains('.')) {
+            QStringList parts = searchTerm.split('.');
+            if (parts.size() > 0) {
+                searchTerm = parts.last(); // 使用最後一部分（通常是應用名稱）
             }
+        }
+        
+        // 交替嘗試不同的搜索方式
+        if (m_attemptCount % 3 == 0) {
+            // 每三次嘗試，搜索應用名稱
+            proc->start("xdotool", {"search", "--name", searchTerm});
+        } else if (m_attemptCount % 3 == 1) {
+            // 搜索 "waydroid" 關鍵字
+            proc->start("xdotool", {"search", "--class", "waydroid"});
         } else {
-            m_checkTimer.stop();
-            attempts = 0;
+            // 搜索包名
+            proc->start("xdotool", {"search", "--class", m_packageName});
         }
 #else
         // 非 Linux 平台暫時不支持
@@ -173,5 +198,6 @@ private:
     bool m_embedded;
     QWindow *m_window;
     QTimer m_checkTimer;
+    int m_attemptCount = 0; // 追蹤查找視窗的嘗試次數
 };
 
