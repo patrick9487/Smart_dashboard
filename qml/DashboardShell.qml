@@ -25,7 +25,8 @@ ApplicationWindow {
     property var currentEmbedder: null
     
     // Compositor 模式相關屬性
-    property bool compositorMode: typeof compositor !== "undefined" && compositor !== null
+    // 檢查環境變量而不是 compositor 對象（因為 compositor 在 QML 中總是存在）
+    property bool compositorMode: qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR")
     property var currentSurface: null
     
     // 調試：顯示當前模式狀態（可在 UI 中顯示）
@@ -270,7 +271,7 @@ ApplicationWindow {
         console.log("DashboardShell loaded")
         console.log("Waydroid available:", waydroidAvailable)
         console.log("Compositor mode:", compositorMode)
-        console.log("Compositor object:", typeof Compositor !== "undefined" ? "exists" : "undefined")
+        console.log("Compositor object:", compositor ? "exists" : "undefined")
         
         if (compositorMode && compositor) {
             console.log("✓ Compositor 模式已啟用")
@@ -278,7 +279,9 @@ ApplicationWindow {
             console.log("Compositor created, waiting for surfaces...")
         } else {
             console.log("⚠ Compositor 模式未啟用 - 使用視窗疊加模式")
-            console.log("提示：設置環境變量 SMART_DASHBOARD_COMPOSITOR=1 來啟用")
+            if (!compositorMode) {
+                console.log("提示：設置環境變量 SMART_DASHBOARD_COMPOSITOR=1 來啟用")
+            }
         }
         
         if (waydroidAvailable) {
