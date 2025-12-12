@@ -70,9 +70,6 @@ ApplicationWindow {
     
     // 將 surfaceModel 暴露到外部，方便訪問
     property alias surfaceModel: compositor.compositorSurfaceModel
-    
-    // 將 surfaceModel 暴露到外部，方便訪問
-    property alias surfaceModel: compositor.surfaceModel
 
     // 背景漸層
     Rectangle {
