@@ -32,10 +32,8 @@ public:
     void setSurface(QWaylandSurface *s) {
         if (surface() != s) {
             QWaylandQuickItem::setSurface(s);
-            if (s) {
-                // 確保表面可以接收輸入事件
-                s->setInputRegionEnabled(true);
-            }
+            // QWaylandQuickItem 自動處理輸入事件轉發
+            // 不需要手動設置輸入區域
             emit surfaceChanged();
         }
     }

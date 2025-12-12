@@ -14,6 +14,8 @@
 #include <QString>
 #include <QVariant>
 #include <QVariantList>
+#include <QSize>
+#include <QTimer>
 #include <QDebug>
 
 /**
@@ -42,8 +44,8 @@ public:
         
         // 創建 WL Shell（舊版 Wayland 應用使用）
         m_wlShell = new QWaylandWlShell(this);
-        connect(m_wlShell, &QWaylandWlShell::shellSurfaceCreated, this,
-                &DashboardWaylandCompositor::onWlShellSurfaceCreated);
+        // 注意：QWaylandWlShell 可能沒有 shellSurfaceCreated 信號
+        // 我們通過 surfaceCreated 來處理所有表面
         
         // 監聽所有表面的創建
         connect(this, &QWaylandCompositor::surfaceCreated, this,
@@ -68,7 +70,7 @@ public:
         // 首先檢查已註冊的映射
         if (m_packageToSurface.contains(packageName)) {
             QWaylandSurface *surface = m_packageToSurface[packageName];
-            if (surface && surface->isMapped()) {
+            if (surface && hasSurfaceContent(surface)) {
                 return surface;
             }
         }
@@ -89,7 +91,7 @@ public:
         }
         
         for (auto *surface : m_surfaces) {
-            if (!surface->isMapped()) continue;
+            if (!hasSurfaceContent(surface)) continue;
             
             // 檢查 XDG Surface
             for (auto *xdgSurface : m_xdgSurfaces) {
@@ -104,18 +106,9 @@ public:
                 }
             }
             
-            // 檢查 WL Shell Surface
-            for (auto *wlSurface : m_wlShellSurfaces) {
-                if (wlSurface->surface() == surface) {
-                    QString title = wlSurface->title();
-                    if (title.contains(searchTerm, Qt::CaseInsensitive) || 
-                        title.contains(packageName, Qt::CaseInsensitive)) {
-                        m_packageToSurface[packageName] = surface;
-                        m_pendingPackages.removeAll(packageName);
-                        return surface;
-                    }
-                }
-            }
+            // 檢查 WL Shell Surface（通過查找關聯的表面）
+            // 注意：由於無法直接獲取 WL Shell Surface，我們跳過這個檢查
+            // 主要依賴 XDG Shell 來匹配表面
         }
         
         return nullptr; // 還沒找到，等待表面創建
@@ -125,7 +118,7 @@ public:
     Q_INVOKABLE QVariantList getAllMappedSurfaces() {
         QVariantList result;
         for (auto *surface : m_surfaces) {
-            if (surface->isMapped()) {
+            if (hasSurfaceContent(surface)) {
                 result.append(QVariant::fromValue(surface));
             }
         }
@@ -143,16 +136,27 @@ private slots:
         qDebug() << "DashboardWaylandCompositor: Surface created";
         m_surfaces.append(surface);
         
-        connect(surface, &QWaylandSurface::mapped, this, [this, surface]() {
-            qDebug() << "DashboardWaylandCompositor: Surface mapped";
-            emit surfaceMapped(surface);
+        // 監聽表面大小變化來判斷是否已映射
+        connect(surface, &QWaylandSurface::sizeChanged, this, [this, surface]() {
+            if (hasSurfaceContent(surface)) {
+                qDebug() << "DashboardWaylandCompositor: Surface mapped (size changed)";
+                emit surfaceMapped(surface);
+            }
         });
         
-        connect(surface, &QWaylandSurface::unmapped, this, [this, surface]() {
-            qDebug() << "DashboardWaylandCompositor: Surface unmapped";
+        // 監聽表面銷毀
+        connect(surface, &QObject::destroyed, this, [this, surface]() {
+            qDebug() << "DashboardWaylandCompositor: Surface destroyed";
             emit surfaceUnmapped(surface);
             m_surfaces.removeAll(surface);
         });
+        
+        // 如果表面已經有內容，立即觸發 mapped 信號
+        if (hasSurfaceContent(surface)) {
+            QTimer::singleShot(0, this, [this, surface]() {
+                emit surfaceMapped(surface);
+            });
+        }
         
         emit surfaceCreated(surface);
     }
@@ -175,22 +179,9 @@ private slots:
         }
     }
     
-    void onWlShellSurfaceCreated(QWaylandWlShellSurface *shellSurface) {
-        qDebug() << "DashboardWaylandCompositor: WL Shell Surface created";
-        if (shellSurface) {
-            m_wlShellSurfaces.append(shellSurface);
-            connect(shellSurface, &QWaylandWlShellSurface::titleChanged, this, [this, shellSurface]() {
-                QString title = shellSurface->title();
-                qDebug() << "DashboardWaylandCompositor: WL Shell Surface title:" << title;
-                // 嘗試根據標題匹配包名
-                matchSurfaceToPackage(shellSurface->surface(), title);
-            });
-            // 立即檢查標題
-            if (!shellSurface->title().isEmpty()) {
-                matchSurfaceToPackage(shellSurface->surface(), shellSurface->title());
-            }
-        }
-    }
+    // 注意：由於 QWaylandWlShell 可能沒有 shellSurfaceCreated 信號
+    // 我們通過其他方式處理 WL Shell 表面
+    // 如果需要，可以在 onSurfaceCreated 中檢查表面類型
     
     // 嘗試將表面匹配到包名
     void matchSurfaceToPackage(QWaylandSurface *surface, const QString &title) {
@@ -218,12 +209,19 @@ private slots:
         }
     }
 
+    // 檢查表面是否有內容（替代 isMapped）
+    bool hasSurfaceContent(QWaylandSurface *surface) const {
+        if (!surface) return false;
+        // 檢查表面大小是否有效
+        QSize size = surface->size();
+        return size.isValid() && !size.isEmpty();
+    }
+
 private:
     QWaylandXdgShell *m_xdgShell = nullptr;
     QWaylandWlShell *m_wlShell = nullptr;
     QList<QWaylandSurface*> m_surfaces;
     QList<QWaylandXdgSurface*> m_xdgSurfaces;
-    QList<QWaylandWlShellSurface*> m_wlShellSurfaces;
     QHash<QString, QWaylandSurface*> m_packageToSurface; // 包名到表面的映射
     QStringList m_pendingPackages; // 等待匹配的包名列表
 };

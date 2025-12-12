@@ -15,7 +15,7 @@ Item {
     id: root
     
     property var surface: null
-    property bool showPlaceholder: !surface || !surface.mapped
+    property bool showPlaceholder: !surface || !(surface && surface.size && surface.size.isValid())
     
     // 佔位符：當表面尚未映射時顯示
     Rectangle {
@@ -87,8 +87,9 @@ Item {
     // 監聽表面狀態變化
     Connections {
         target: surface
-        function onMappedChanged() {
-            console.log("CompositorSurfaceEmbed: Surface mapped changed to", surface ? surface.mapped : false)
+        function onSizeChanged() {
+            var hasContent = surface && surface.size && surface.size.isValid()
+            console.log("CompositorSurfaceEmbed: Surface size changed, has content:", hasContent)
         }
     }
 }
