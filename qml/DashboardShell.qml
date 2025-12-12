@@ -53,13 +53,39 @@ ApplicationWindow {
             id: compositorSurfaceModel
         }
         
-        // 監聽表面創建
+        // 監聯表面創建
         onSurfaceCreated: function(surface) {
             console.log("🔵 WaylandCompositor: New surface created")
             console.log("  Surface object:", surface)
             console.log("  Current compositorSurfaceModel count:", compositorSurfaceModel.count)
+            
+            // 檢查是否已經存在（避免重複）
+            for (var i = 0; i < compositorSurfaceModel.count; i++) {
+                if (compositorSurfaceModel.get(i).surface === surface) {
+                    console.log("  Surface already exists, skipping")
+                    return
+                }
+            }
+            
             compositorSurfaceModel.append({ surface: surface })
             console.log("  After append, compositorSurfaceModel count:", compositorSurfaceModel.count)
+            
+            // 監聽 surface 銷毀事件
+            surface.surfaceDestroyed.connect(function() {
+                console.log("🔴 WaylandCompositor: Surface destroyed")
+                for (var i = 0; i < compositorSurfaceModel.count; i++) {
+                    if (compositorSurfaceModel.get(i).surface === surface) {
+                        compositorSurfaceModel.remove(i)
+                        console.log("  Removed from model, new count:", compositorSurfaceModel.count)
+                        break
+                    }
+                }
+                // 如果當前表面被銷毀，清除引用
+                if (currentSurface === surface) {
+                    currentSurface = null
+                }
+            })
+            
             // 如果還沒有當前表面，設置第一個表面為當前表面
             if (!currentSurface) {
                 currentSurface = surface

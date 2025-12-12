@@ -69,6 +69,8 @@ public:
         : QObject(parent)
         , m_running(false)
         , m_apps(new AppsModel(this))
+        , m_refreshing(false)
+        , m_refreshProcess(nullptr)
     {
         connect(&m_timer, &QTimer::timeout, this, &WaydroidManager::checkStatus);
         m_timer.start(2000);
@@ -111,10 +113,9 @@ public slots:
                 } else {
                     m_apps->setApps({});
                 }
-            } else if (m_running) {
-                // 即使狀態沒改變，如果 Waydroid 在運行，也定期刷新應用列表
-                // 這樣可以處理應用程式列表延遲載入的情況
-                qDebug() << "WaydroidManager::checkStatus() - Waydroid still running, refreshing apps";
+            } else if (m_running && m_apps->rowCount() == 0) {
+                // 只在 app 列表為空時才刷新（避免頻繁請求）
+                qDebug() << "WaydroidManager::checkStatus() - Waydroid running but no apps, refreshing";
                 refreshApps();
             }
         });
@@ -128,9 +129,34 @@ public slots:
             return;
         }
 
+        // 避免重複請求
+        if (m_refreshing) {
+            qDebug() << "WaydroidManager::refreshApps() - already refreshing, skipping";
+            return;
+        }
+        m_refreshing = true;
+
         qDebug() << "WaydroidManager::refreshApps() - fetching app list";
-        auto *process = new QProcess(this);
-        connect(process, &QProcess::finished, this, [this, process](int exitCode, QProcess::ExitStatus) {
+        m_refreshProcess = new QProcess(this);
+        auto *process = m_refreshProcess;
+        
+        // 超時處理（10 秒）
+        QTimer *timeout = new QTimer(this);
+        timeout->setSingleShot(true);
+        connect(timeout, &QTimer::timeout, this, [this, process, timeout]() {
+            qWarning() << "WaydroidManager::refreshApps() - TIMEOUT after 10s, killing process";
+            if (process->state() != QProcess::NotRunning) {
+                process->kill();
+            }
+            timeout->deleteLater();
+        });
+        timeout->start(10000);
+        
+        connect(process, &QProcess::finished, this, [this, process, timeout](int exitCode, QProcess::ExitStatus) {
+            timeout->stop();
+            timeout->deleteLater();
+            m_refreshing = false;
+            m_refreshProcess = nullptr;
             QVector<AppEntry> apps;
             const QString output = QString::fromUtf8(process->readAllStandardOutput());
             const QString error = QString::fromUtf8(process->readAllStandardError());
@@ -278,4 +304,6 @@ private:
     bool m_running;
     QTimer m_timer;
     AppsModel *m_apps;
+    bool m_refreshing;
+    QProcess *m_refreshProcess;
 };
