@@ -128,39 +128,20 @@ CONFIG_DONE:;
     
     // 注意：如果啟用 compositor 模式，我們將在 QML 中使用 WaylandCompositor（QtWayland.Compositor）
     // 而不是在 C++ 中創建。這樣更簡單且更符合 Qt 的最佳實踐。
+    // Compositor 會在 QML 中自動創建，不需要在 C++ 中設置。
     if (useCompositorMode) {
         qDebug() << "啟用 Wayland Compositor 模式（使用 QML WaylandCompositor）";
+        qDebug() << "Compositor 將在 QML 中自動創建";
     } else {
         qDebug() << "使用標準模式（視窗疊加）";
         qDebug() << "提示：設置環境變量 SMART_DASHBOARD_COMPOSITOR=1 來啟用 compositor 模式";
     }
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
-                     &app, [compositor, useCompositorMode](QObject *obj, const QUrl &objUrl) {
+                     &app, [](QObject *obj, const QUrl &objUrl) {
                          if (!obj) {
                              qCritical() << "QML root object not created for URL:" << objUrl;
                              QCoreApplication::exit(-1);
-                             return;
-                         }
-                         
-                         // 如果啟用了 compositor 模式，設置 output window
-                         if (useCompositorMode && compositor) {
-                             // 嘗試獲取 QML 窗口
-                             QQuickWindow *quickWindow = qobject_cast<QQuickWindow*>(obj);
-                             if (quickWindow) {
-                                 qDebug() << "Found QQuickWindow, setting output window";
-                                 compositor->setOutputWindow(quickWindow);
-                             } else {
-                                 // 如果沒有找到 QQuickWindow，嘗試從 ApplicationWindow 獲取
-                                 QObject *windowObj = obj->findChild<QObject*>("window");
-                                 if (windowObj) {
-                                     QQuickWindow *win = qobject_cast<QQuickWindow*>(windowObj);
-                                     if (win) {
-                                         qDebug() << "Found window from ApplicationWindow, setting output window";
-                                         compositor->setOutputWindow(win);
-                                     }
-                                 }
-                             }
                          }
                      }, Qt::QueuedConnection);
 
