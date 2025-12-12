@@ -20,6 +20,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFileInfo>
+#include <QWindow>
 
 /**
  * DashboardWaylandCompositor
@@ -68,16 +69,10 @@ public:
         // 注意：QWaylandWlShell 可能沒有 shellSurfaceCreated 信號
         // 我們通過 surfaceCreated 來處理所有表面
         
-        // 創建 Output（必需，compositor 需要 output 才能創建 socket）
-        m_output = new QWaylandOutput(this, this);
-        m_output->setSizeFollowsWindow(true);
-        
         // 監聽所有表面的創建
         connect(this, &QWaylandCompositor::surfaceCreated, this,
                 &DashboardWaylandCompositor::onSurfaceCreated);
         
-        // 創建 compositor socket
-        // 注意：必須在創建 output 之後調用 create()
         // 設置 socket 名稱（在創建之前）
         if (!socketName.isEmpty() && socketName != "wayland-0") {
             // 嘗試設置自定義 socket 名稱
@@ -86,28 +81,28 @@ public:
             qputenv("WAYLAND_DISPLAY", socketName.toUtf8());
         }
         
-        if (!create()) {
-            qWarning() << "DashboardWaylandCompositor: Failed to create compositor socket";
-            qWarning() << "DashboardWaylandCompositor: Check XDG_RUNTIME_DIR:" << runtimeDir;
-            qWarning() << "DashboardWaylandCompositor: Make sure the directory exists and is writable";
+        // 創建 compositor socket
+        // 注意：create() 返回 void，不是 bool
+        // Output 可以在稍後設置（當有 QWindow 時）
+        create();
+        
+        QString actualSocketName = QWaylandCompositor::socketName();
+        if (actualSocketName.isEmpty()) {
+            actualSocketName = socketName; // 使用我們設置的名稱
+        }
+        QString actualSocketPath = runtimeDir + "/" + actualSocketName;
+        qDebug() << "DashboardWaylandCompositor: Socket creation attempted";
+        qDebug() << "DashboardWaylandCompositor: Socket name:" << actualSocketName;
+        qDebug() << "DashboardWaylandCompositor: Socket path:" << actualSocketPath;
+        
+        // 驗證 socket 文件是否存在
+        QFileInfo socketFile(actualSocketPath);
+        if (socketFile.exists()) {
+            qDebug() << "DashboardWaylandCompositor: ✓ Socket file exists:" << actualSocketPath;
         } else {
-            QString actualSocketName = QWaylandCompositor::socketName();
-            if (actualSocketName.isEmpty()) {
-                actualSocketName = socketName; // 使用我們設置的名稱
-            }
-            QString actualSocketPath = runtimeDir + "/" + actualSocketName;
-            qDebug() << "DashboardWaylandCompositor: Socket created successfully";
-            qDebug() << "DashboardWaylandCompositor: Socket name:" << actualSocketName;
-            qDebug() << "DashboardWaylandCompositor: Socket path:" << actualSocketPath;
-            
-            // 驗證 socket 文件是否存在
-            QFileInfo socketFile(actualSocketPath);
-            if (socketFile.exists()) {
-                qDebug() << "DashboardWaylandCompositor: ✓ Socket file exists:" << actualSocketPath;
-            } else {
-                qWarning() << "DashboardWaylandCompositor: ✗ Socket file not found:" << actualSocketPath;
-                qWarning() << "DashboardWaylandCompositor: Please check if the socket was created with a different name";
-            }
+            qWarning() << "DashboardWaylandCompositor: ✗ Socket file not found:" << actualSocketPath;
+            qWarning() << "DashboardWaylandCompositor: Socket may be created with a different name";
+            qWarning() << "DashboardWaylandCompositor: Check:" << runtimeDir << "for wayland-* files";
         }
         
         qDebug() << "DashboardWaylandCompositor: Initialized";
@@ -127,6 +122,16 @@ public:
 
     QWaylandXdgShell* xdgShell() const { return m_xdgShell; }
     QWaylandWlShell* wlShell() const { return m_wlShell; }
+    
+    // 設置 Output（當有 QWindow 時調用）
+    // 注意：QWaylandOutput 需要 QWindow* 作為參數
+    Q_INVOKABLE void setOutputWindow(QWindow *window) {
+        if (!m_output && window) {
+            m_output = new QWaylandOutput(this, window);
+            m_output->setSizeFollowsWindow(true);
+            qDebug() << "DashboardWaylandCompositor: Output created with window";
+        }
+    }
     
     // 註冊包名與表面的映射關係（當應用啟動時調用）
     Q_INVOKABLE void registerPackageSurface(const QString &packageName, QWaylandSurface *surface) {
