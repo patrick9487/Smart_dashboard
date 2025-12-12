@@ -72,21 +72,17 @@ Item {
         visible: !showPlaceholder && surface
         surface: root.surface
         
-        // 當表面提交新內容時，更新顯示
-        Connections {
-            target: surface
-            function onCommitted() {
-                console.log("CompositorSurfaceEmbed: Surface committed, has content:", surface ? surface.hasContent : false)
+        // 使用定時器定期檢查表面狀態
+        Timer {
+            id: checkTimer
+            interval: 100
+            running: surface !== null
+            repeat: true
+            onTriggered: {
+                if (surface && surface.hasContent) {
+                    console.log("CompositorSurfaceEmbed: Surface has content")
+                }
             }
-        }
-    }
-    
-    // 監聽表面狀態變化
-    Connections {
-        target: surface
-        function onCommitted() {
-            var hasContent = surface && surface.hasContent
-            console.log("CompositorSurfaceEmbed: Surface committed, has content:", hasContent)
         }
     }
 }

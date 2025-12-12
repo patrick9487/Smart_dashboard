@@ -136,15 +136,6 @@ private slots:
         qDebug() << "DashboardWaylandCompositor: Surface created";
         m_surfaces.append(surface);
         
-        // 監聽表面提交事件來判斷是否已映射
-        // QWaylandSurface 有 committed 信號，當表面提交新內容時觸發
-        connect(surface, &QWaylandSurface::committed, this, [this, surface]() {
-            if (hasSurfaceContent(surface)) {
-                qDebug() << "DashboardWaylandCompositor: Surface mapped (committed)";
-                emit surfaceMapped(surface);
-            }
-        });
-        
         // 監聽表面銷毀
         connect(surface, &QObject::destroyed, this, [this, surface]() {
             qDebug() << "DashboardWaylandCompositor: Surface destroyed";
@@ -152,8 +143,25 @@ private slots:
             m_surfaces.removeAll(surface);
         });
         
+        // 使用定時器定期檢查表面是否有內容
+        // 當表面有內容時，觸發 mapped 信號
+        QTimer *checkTimer = new QTimer(this);
+        checkTimer->setSingleShot(false);
+        checkTimer->setInterval(100); // 每 100ms 檢查一次
+        connect(checkTimer, &QTimer::timeout, this, [this, surface, checkTimer]() {
+            if (hasSurfaceContent(surface)) {
+                qDebug() << "DashboardWaylandCompositor: Surface mapped (has content)";
+                emit surfaceMapped(surface);
+                checkTimer->stop();
+                checkTimer->deleteLater();
+            }
+        });
+        checkTimer->start();
+        
         // 如果表面已經有內容，立即觸發 mapped 信號
         if (hasSurfaceContent(surface)) {
+            checkTimer->stop();
+            checkTimer->deleteLater();
             QTimer::singleShot(0, this, [this, surface]() {
                 emit surfaceMapped(surface);
             });
