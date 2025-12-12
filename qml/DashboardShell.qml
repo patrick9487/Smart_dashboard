@@ -34,7 +34,6 @@ ApplicationWindow {
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
     WaylandCompositor {
         id: compositor
-        visible: false  // Compositor 本身不可見
         socketName: "wayland-smartdashboard-0"
         
         // 創建 WaylandOutput 並連接到我們的 ApplicationWindow
