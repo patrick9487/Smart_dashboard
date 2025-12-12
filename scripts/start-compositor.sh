@@ -14,23 +14,30 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}Smart Dashboard Wayland Compositor 啟動腳本${NC}"
 echo "=========================================="
 
-# 檢查是否在 Wayland 環境中
-if [ -z "$WAYLAND_DISPLAY" ] && [ -z "$XDG_SESSION_TYPE" ]; then
-    echo -e "${YELLOW}警告: 未檢測到 Wayland 環境${NC}"
-    echo "請確保您在 Wayland 會話中運行此腳本"
-    read -p "是否繼續？(y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
+# 檢查顯示服務器
+# 注意：Qt 應用本身可以連接到 X11 或 Wayland
+# 但我們創建的 compositor 是嵌套的 Wayland compositor
+if [ -z "$XDG_RUNTIME_DIR" ]; then
+    export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+    if [ ! -d "$XDG_RUNTIME_DIR" ]; then
+        export XDG_RUNTIME_DIR="/tmp"
     fi
+    echo -e "${YELLOW}設置 XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR${NC}"
 fi
+
+# 確保 XDG_RUNTIME_DIR 存在
+mkdir -p "$XDG_RUNTIME_DIR"
 
 # 設置 compositor socket 名稱
 COMPOSITOR_SOCKET="${COMPOSITOR_SOCKET:-wayland-smartdashboard-0}"
-export WAYLAND_DISPLAY="$COMPOSITOR_SOCKET"
 
 # 設置 Smart Dashboard compositor 模式
 export SMART_DASHBOARD_COMPOSITOR=1
+
+# 注意：不要設置 WAYLAND_DISPLAY，讓 Qt 應用使用默認的顯示服務器
+# 我們創建的 compositor 是嵌套的，會創建自己的 socket
+# 其他應用（如 Waydroid）需要連接到這個 socket
+# 但 Qt 應用本身可以連接到 X11 或系統的 Wayland
 
 # 獲取應用程序路徑
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,7 +56,7 @@ else
 fi
 
 echo -e "${GREEN}使用應用程序: $APP_BINARY${NC}"
-echo -e "${GREEN}Compositor Socket: $WAYLAND_DISPLAY${NC}"
+echo -e "${GREEN}Compositor Socket: $COMPOSITOR_SOCKET${NC}"
 
 # 配置 Waydroid 使用我們的 compositor
 echo -e "${YELLOW}配置 Waydroid...${NC}"
@@ -73,10 +80,16 @@ fi
 echo -e "${GREEN}啟動 Smart Dashboard Compositor...${NC}"
 echo ""
 echo "提示:"
-echo "  - Compositor socket: $WAYLAND_DISPLAY"
+echo "  - Compositor socket: $COMPOSITOR_SOCKET"
+echo "  - Socket 路徑: $XDG_RUNTIME_DIR/$COMPOSITOR_SOCKET"
 echo "  - 要讓 Waydroid 應用連接到此 compositor，請設置:"
-echo "    export WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+echo "    export WAYLAND_DISPLAY=$COMPOSITOR_SOCKET"
 echo "  - 然後啟動 Waydroid 應用"
+echo ""
+echo "注意:"
+echo "  - Qt 應用本身會連接到系統的顯示服務器（X11 或 Wayland）"
+echo "  - 我們創建的 compositor 是嵌套的，會創建自己的 socket"
+echo "  - 如果看到 'Failed to create wl_display' 錯誤，請確保 XDG_RUNTIME_DIR 已設置"
 echo ""
 
 exec "$APP_BINARY" "$@"

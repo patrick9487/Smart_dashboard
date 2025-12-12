@@ -17,6 +17,8 @@
 #include <QSize>
 #include <QTimer>
 #include <QDebug>
+#include <QStandardPaths>
+#include <QDir>
 
 /**
  * DashboardWaylandCompositor
@@ -37,6 +39,25 @@ public:
     explicit DashboardWaylandCompositor(QObject *parent = nullptr)
         : QWaylandCompositor(parent)
     {
+        // 設置 socket 名稱（從環境變量獲取，或使用默認值）
+        QString socketName = qEnvironmentVariable("WAYLAND_DISPLAY", "wayland-smartdashboard-0");
+        if (socketName.isEmpty()) {
+            socketName = "wayland-smartdashboard-0";
+        }
+        
+        // 設置 socket 路徑
+        QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+        if (runtimeDir.isEmpty()) {
+            runtimeDir = QDir::tempPath();
+        }
+        
+        QString socketPath = runtimeDir + "/" + socketName;
+        qDebug() << "DashboardWaylandCompositor: Creating socket at" << socketPath;
+        
+        // 創建 compositor socket
+        // 注意：QWaylandCompositor 會自動創建 socket，但我們需要確保目錄存在
+        QDir().mkpath(runtimeDir);
+        
         // 創建 XDG Shell（現代 Wayland 應用使用）
         m_xdgShell = new QWaylandXdgShell(this);
         connect(m_xdgShell, &QWaylandXdgShell::toplevelCreated, this,
@@ -52,6 +73,17 @@ public:
                 &DashboardWaylandCompositor::onSurfaceCreated);
         
         qDebug() << "DashboardWaylandCompositor: Initialized";
+        qDebug() << "DashboardWaylandCompositor: Socket name:" << socketName;
+        qDebug() << "DashboardWaylandCompositor: Runtime dir:" << runtimeDir;
+    }
+    
+    // 獲取 socket 名稱
+    Q_INVOKABLE QString socketName() const {
+        QString socketName = qEnvironmentVariable("WAYLAND_DISPLAY", "wayland-smartdashboard-0");
+        if (socketName.isEmpty()) {
+            return "wayland-smartdashboard-0";
+        }
+        return socketName;
     }
 
     QWaylandXdgShell* xdgShell() const { return m_xdgShell; }

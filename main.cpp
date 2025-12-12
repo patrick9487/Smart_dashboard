@@ -56,6 +56,29 @@ static void dumpQmlResources()
 
 int main(int argc, char *argv[])
 {
+    // 檢查是否啟用 compositor 模式
+    bool useCompositorMode = qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR");
+    
+    // 如果啟用 compositor 模式，確保 Qt 應用可以連接到顯示服務器
+    // 注意：Qt 應用本身需要連接到系統的顯示服務器（Wayland 或 X11）
+    // 然後創建嵌套的 compositor
+    if (useCompositorMode) {
+        // 確保 XDG_RUNTIME_DIR 已設置
+        QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+        if (runtimeDir.isEmpty()) {
+            runtimeDir = QDir::tempPath();
+            qputenv("XDG_RUNTIME_DIR", runtimeDir.toUtf8());
+            qDebug() << "Set XDG_RUNTIME_DIR to:" << runtimeDir;
+        }
+        
+        // 如果沒有設置 WAYLAND_DISPLAY，嘗試使用系統的 Wayland
+        // 但這不會影響我們創建的嵌套 compositor
+        if (!qEnvironmentVariableIsSet("WAYLAND_DISPLAY")) {
+            // 不設置，讓 Qt 使用默認的顯示服務器
+            qDebug() << "WAYLAND_DISPLAY not set, Qt will use default display server";
+        }
+    }
+    
     QGuiApplication app(argc, argv);
 
     // 1) 載入設定（先從 qrc，再依序嘗試 bundle/當前目錄）
