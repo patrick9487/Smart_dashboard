@@ -25,8 +25,8 @@ ApplicationWindow {
     property var currentEmbedder: null
     
     // Compositor 模式相關屬性
-    // 檢查環境變量而不是 compositor 對象（因為 compositor 在 QML 中總是存在）
-    property bool compositorMode: qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR")
+    // 從 C++ 獲取 compositor 模式狀態（因為 QML 中沒有 qEnvironmentVariableIsSet）
+    property bool compositorMode: typeof CompositorModeEnabled !== "undefined" ? CompositorModeEnabled : false
     property var currentSurface: null
     
     // 調試：顯示當前模式狀態（可在 UI 中顯示）
@@ -85,7 +85,7 @@ ApplicationWindow {
         anchors.top: parent.top
         anchors.topMargin: 5
     }
-    
+
     // 調試：顯示當前模式（右上角）
     Text {
         id: modeIndicator

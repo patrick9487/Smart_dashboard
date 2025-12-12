@@ -119,6 +119,9 @@ CONFIG_DONE:;
     WaydroidManager waydroid;
     engine.rootContext()->setContextProperty("Waydroid", &waydroid);
     
+    // 暴露 compositor 模式狀態到 QML
+    engine.rootContext()->setContextProperty("CompositorModeEnabled", useCompositorMode);
+    
     // 註冊 QML 類型
     qmlRegisterType<WindowEmbedItem>("SmartDashboard", 1, 0, "WindowEmbedItem");
     
