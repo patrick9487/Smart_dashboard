@@ -31,7 +31,7 @@ ApplicationWindow {
     
     // 調試：顯示當前模式狀態（可在 UI 中顯示）
     property string modeStatus: compositorMode ? 
-        ("Compositor 模式" + (surfaceModel.count > 0 ? " [有表面]" : " [無表面]")) : 
+        ("Compositor 模式" + (compositorSurfaceModel.count > 0 ? " [有表面]" : " [無表面]")) : 
         "視窗疊加模式"
     
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
@@ -67,9 +67,7 @@ ApplicationWindow {
             }
         }
     }
-    
-    // 將 surfaceModel 暴露到外部，方便訪問
-    property alias surfaceModel: compositor.compositorSurfaceModel
+
 
     // 背景漸層
     Rectangle {
@@ -237,7 +235,7 @@ ApplicationWindow {
     // Compositor 模式：真正的表面嵌入（參考 dashboard_compositor 專案）
     // 使用 Repeater 顯示所有表面
     Repeater {
-        model: compositorMode ? surfaceModel : 0
+        model: compositorMode ? compositorSurfaceModel : 0
         delegate: WaylandQuickItem {
             anchors.left: parent.left
             anchors.right: parent.right

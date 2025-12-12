@@ -34,6 +34,10 @@ COMPOSITOR_SOCKET="${COMPOSITOR_SOCKET:-wayland-smartdashboard-0}"
 # 設置 Smart Dashboard compositor 模式
 export SMART_DASHBOARD_COMPOSITOR=1
 
+# 設置 Qt Wayland compositor 的 socket 名稱（關鍵）
+export QT_WAYLAND_COMPOSITOR_SOCKET_NAME="$COMPOSITOR_SOCKET"
+export SMART_DASHBOARD_COMPOSITOR_SOCKET_NAME="$COMPOSITOR_SOCKET"
+
 # 注意：不要設置 WAYLAND_DISPLAY，讓 Qt 應用使用默認的顯示服務器
 # 我們創建的 compositor 是嵌套的，會創建自己的 socket
 # 其他應用（如 Waydroid）需要連接到這個 socket

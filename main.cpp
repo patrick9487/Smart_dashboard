@@ -62,16 +62,22 @@ int main(int argc, char *argv[])
     // 如果啟用 compositor 模式，設置 socket 名稱
     // 參考 dashboard_compositor 專案：使用 QT_WAYLAND_COMPOSITOR_SOCKET_NAME 環境變量
     if (useCompositorMode) {
-        // 優先使用 WAYLAND_DISPLAY 環境變量，如果沒有則使用默認值
-        QString socketName = qEnvironmentVariable("WAYLAND_DISPLAY");
-        if (socketName.isEmpty()) {
-            socketName = "wayland-smartdashboard-0";
-        }
+        // 注意：不要用 WAYLAND_DISPLAY（那是「本 App 作為 client」連到系統 compositor 的名稱，常常是 wayland-0）
+        // 我們要設定的是「本 App 作為 compositor」要開的 socket 名稱。
+        QString socketName = qEnvironmentVariable("QT_WAYLAND_COMPOSITOR_SOCKET_NAME");
+        if (socketName.isEmpty())
+            socketName = qEnvironmentVariable("SMART_DASHBOARD_COMPOSITOR_SOCKET_NAME");
+        if (socketName.isEmpty())
+            socketName = qEnvironmentVariable("COMPOSITOR_SOCKET");
+        if (socketName.isEmpty())
+            socketName = QStringLiteral("wayland-smartdashboard-0");
+
         // 設置 Qt Wayland Compositor 的 socket 名稱
         // 注意：必須在 QGuiApplication 創建之前設置
         qputenv("QT_WAYLAND_COMPOSITOR_SOCKET_NAME", socketName.toUtf8());
         qDebug() << "啟用 Compositor 模式，設置 socket 名稱:" << socketName;
         qDebug() << "QT_WAYLAND_COMPOSITOR_SOCKET_NAME:" << qEnvironmentVariable("QT_WAYLAND_COMPOSITOR_SOCKET_NAME");
+        qDebug() << "WAYLAND_DISPLAY (system):" << qEnvironmentVariable("WAYLAND_DISPLAY");
         
         // 確保 XDG_RUNTIME_DIR 已設置
         QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
