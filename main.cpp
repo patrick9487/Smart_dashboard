@@ -10,6 +10,8 @@
 #include "AppConfig.h"
 #include "src/waydroidmanager.h"
 #include "src/windowembeditem.h"
+#include "src/waylandcompositor.h"
+#include "src/surfaceitem.h"
 
 static void dumpQmlResources()
 {
@@ -96,6 +98,24 @@ CONFIG_DONE:;
     
     // 註冊 QML 類型
     qmlRegisterType<WindowEmbedItem>("SmartDashboard", 1, 0, "WindowEmbedItem");
+    
+    // 註冊 Wayland Compositor 類型（真正的 compositor 模式）
+    qmlRegisterType<DashboardWaylandCompositor>("SmartDashboard", 1, 0, "WaylandCompositor");
+    qmlRegisterType<SurfaceItem>("SmartDashboard", 1, 0, "SurfaceItem");
+    
+    // 創建 Wayland Compositor 實例（可選，需要環境變量啟用）
+    // 注意：啟用 compositor 模式需要設置 WAYLAND_DISPLAY 環境變量
+    bool useCompositorMode = qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR");
+    DashboardWaylandCompositor *compositor = nullptr;
+    
+    if (useCompositorMode) {
+        qDebug() << "啟用 Wayland Compositor 模式";
+        compositor = new DashboardWaylandCompositor(&app);
+        engine.rootContext()->setContextProperty("Compositor", compositor);
+    } else {
+        qDebug() << "使用標準模式（視窗疊加）";
+        qDebug() << "提示：設置環境變量 SMART_DASHBOARD_COMPOSITOR=1 來啟用 compositor 模式";
+    }
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [](QObject *obj, const QUrl &objUrl) {

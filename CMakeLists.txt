@@ -5,7 +5,7 @@ project(SmartDashboard VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
-find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Qml Gui)
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Qml Gui WaylandCompositor)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -18,6 +18,8 @@ qt_add_executable(appSmartDashboard
     src/waydroidmanager.cpp
     src/waydroidwindowembedder.h
     src/windowembeditem.h
+    src/waylandcompositor.h
+    src/surfaceitem.h
 )
 
 # 添加資源文件（配置文件）
@@ -46,6 +48,10 @@ qt_add_qml_module(appSmartDashboard
         qml/widgets/AppIcon.qml
         qml/widgets/AppDock.qml
         qml/widgets/AppWindowEmbed.qml
+        qml/widgets/CompositorSurfaceEmbed.qml
+    SOURCES
+        src/waylandcompositor.h
+        src/surfaceitem.h
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -60,7 +66,7 @@ set_target_properties(appSmartDashboard PROPERTIES
 )
 
 target_link_libraries(appSmartDashboard
-    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Gui
+    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Gui Qt6::WaylandCompositor
 )
 
 include(GNUInstallDirs)
