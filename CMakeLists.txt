@@ -49,9 +49,6 @@ qt_add_qml_module(appSmartDashboard
         qml/widgets/AppDock.qml
         qml/widgets/AppWindowEmbed.qml
         qml/widgets/CompositorSurfaceEmbed.qml
-    SOURCES
-        src/waylandcompositor.h
-        src/surfaceitem.h
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
