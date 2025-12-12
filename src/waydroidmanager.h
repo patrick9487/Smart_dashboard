@@ -6,6 +6,7 @@
 #include <QAbstractListModel>
 #include <QVector>
 #include <QDebug>
+#include <QRegularExpression>
 
 struct AppEntry {
     QString label;
@@ -140,7 +141,12 @@ public slots:
                 qWarning() << "Error output:" << error;
                 return;
             }
-            
+
+            // 即使成功也輸出 stderr（有些環境會把提示/警告寫到 stderr，但仍返回 0）
+            if (!error.trimmed().isEmpty()) {
+                qWarning() << "WaydroidManager::refreshApps() - stderr:" << error.trimmed();
+            }
+
             qDebug() << "WaydroidManager::refreshApps() - output:" << output;
             
             // 解析 waydroid app list 的輸出格式：
@@ -192,6 +198,74 @@ public slots:
                 entry.label = currentName;
                 apps.push_back(std::move(entry));
                 qDebug() << "WaydroidManager::refreshApps() - found app:" << entry.package << "-" << entry.label;
+            }
+
+            // Fallback 解析：不同 Waydroid 版本可能輸出為「<package> - <label>」或「<package> <label>」或「<label> (<package>)」
+            if (apps.isEmpty() && !output.trimmed().isEmpty()) {
+                qDebug() << "WaydroidManager::refreshApps() - primary parse found 0 apps, trying fallback parsers";
+                const auto rawLines = output.split('\n', Qt::SkipEmptyParts);
+                const QRegularExpression rePkgDashLabel(QStringLiteral(R"(^([\w.\-]+)\s*-\s*(.+)$)"));
+                const QRegularExpression reLabelParenPkg(QStringLiteral(R"(^(.+?)\s*\(([\w.\-]+)\)\s*$)"));
+                const QRegularExpression rePkgSpaceLabel(QStringLiteral(R"(^([\w.\-]+)\s+(.+)$)"));
+
+                for (const QString &line : rawLines) {
+                    const QString trimmed = line.trimmed();
+                    if (trimmed.isEmpty())
+                        continue;
+
+                    // 跳過可能的標題行
+                    if (trimmed.startsWith(QStringLiteral("Apps"), Qt::CaseInsensitive) ||
+                        trimmed.startsWith(QStringLiteral("List"), Qt::CaseInsensitive)) {
+                        continue;
+                    }
+
+                    QRegularExpressionMatch m;
+
+                    m = rePkgDashLabel.match(trimmed);
+                    if (m.hasMatch()) {
+                        const QString pkg = m.captured(1).trimmed();
+                        const QString label = m.captured(2).trimmed();
+                        if (pkg.contains('.') && !label.isEmpty()) {
+                            apps.push_back(AppEntry{label, pkg});
+                            continue;
+                        }
+                    }
+
+                    m = reLabelParenPkg.match(trimmed);
+                    if (m.hasMatch()) {
+                        const QString label = m.captured(1).trimmed();
+                        const QString pkg = m.captured(2).trimmed();
+                        if (pkg.contains('.') && !label.isEmpty()) {
+                            apps.push_back(AppEntry{label, pkg});
+                            continue;
+                        }
+                    }
+
+                    m = rePkgSpaceLabel.match(trimmed);
+                    if (m.hasMatch()) {
+                        const QString first = m.captured(1).trimmed();
+                        const QString rest = m.captured(2).trimmed();
+                        // 只有當第一段看起來像 package 時才接受
+                        if (first.contains('.') && !rest.isEmpty()) {
+                            apps.push_back(AppEntry{rest, first});
+                            continue;
+                        }
+                    }
+                }
+
+                // 去重（以 package 為 key）
+                if (!apps.isEmpty()) {
+                    QHash<QString, QString> seen;
+                    QVector<AppEntry> dedup;
+                    dedup.reserve(apps.size());
+                    for (const auto &a : apps) {
+                        if (a.package.isEmpty() || seen.contains(a.package))
+                            continue;
+                        seen.insert(a.package, a.label);
+                        dedup.push_back(a);
+                    }
+                    apps = std::move(dedup);
+                }
             }
             
             qDebug() << "WaydroidManager::refreshApps() - total apps:" << apps.size();
