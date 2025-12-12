@@ -74,26 +74,55 @@ public:
                 &DashboardWaylandCompositor::onSurfaceCreated);
         
         // 設置 socket 名稱（在創建之前）
+        // 注意：QWaylandCompositor 使用環境變量 WAYLAND_DISPLAY 來設置 socket 名稱
+        // 但這只影響客戶端連接，不影響 compositor 創建的 socket 名稱
+        // 我們需要在調用 create() 之前設置環境變量
+        QString originalWaylandDisplay = qEnvironmentVariable("WAYLAND_DISPLAY");
         if (!socketName.isEmpty() && socketName != "wayland-0") {
-            // 嘗試設置自定義 socket 名稱
-            // 注意：QWaylandCompositor 可能不支持自定義 socket 名稱
-            // 我們使用環境變量來指定 socket 名稱
             qputenv("WAYLAND_DISPLAY", socketName.toUtf8());
+            qDebug() << "DashboardWaylandCompositor: Set WAYLAND_DISPLAY to:" << socketName;
+        }
+        
+        // 確保 XDG_RUNTIME_DIR 環境變量已設置
+        if (!qEnvironmentVariableIsSet("XDG_RUNTIME_DIR")) {
+            qputenv("XDG_RUNTIME_DIR", runtimeDir.toUtf8());
+            qDebug() << "DashboardWaylandCompositor: Set XDG_RUNTIME_DIR to:" << runtimeDir;
         }
         
         // 創建 compositor socket
         // 注意：create() 返回 void，不是 bool
-        // Output 可以在稍後設置（當有 QWindow 時）
-        create();
+        // 對於嵌套 compositor，我們需要創建 default display
+        // 注意：QWaylandCompositor::create() 會創建 socket，但名稱可能由系統決定
+        qDebug() << "DashboardWaylandCompositor: Calling create()...";
+        qDebug() << "DashboardWaylandCompositor: XDG_RUNTIME_DIR:" << qEnvironmentVariable("XDG_RUNTIME_DIR");
+        qDebug() << "DashboardWaylandCompositor: WAYLAND_DISPLAY:" << qEnvironmentVariable("WAYLAND_DISPLAY");
         
+        // 嘗試創建 compositor
+        // 注意：如果沒有 output，create() 可能不會創建 socket
+        // 但對於嵌套 compositor，我們仍然可以創建 socket
+        create();
+        qDebug() << "DashboardWaylandCompositor: create() completed";
+        
+        // 嘗試使用 createDefaultDisplay() 如果 create() 沒有創建 socket
+        // 注意：這可能需要不同的 API
+        
+        // 獲取實際創建的 socket 名稱
         QString actualSocketName = QWaylandCompositor::socketName();
+        qDebug() << "DashboardWaylandCompositor: Base class socketName() returned:" << actualSocketName;
+        
+        // 如果基類沒有返回名稱，使用我們設置的名稱
         if (actualSocketName.isEmpty()) {
-            actualSocketName = socketName; // 使用我們設置的名稱
+            actualSocketName = socketName;
+            qDebug() << "DashboardWaylandCompositor: Using configured socket name:" << actualSocketName;
         }
+        
         QString actualSocketPath = runtimeDir + "/" + actualSocketName;
-        qDebug() << "DashboardWaylandCompositor: Socket creation attempted";
-        qDebug() << "DashboardWaylandCompositor: Socket name:" << actualSocketName;
-        qDebug() << "DashboardWaylandCompositor: Socket path:" << actualSocketPath;
+        qDebug() << "DashboardWaylandCompositor: Expected socket path:" << actualSocketPath;
+        
+        // 檢查所有可能的 socket 文件
+        QDir runtimeDirObj(runtimeDir);
+        QStringList waylandSockets = runtimeDirObj.entryList(QStringList() << "wayland-*", QDir::Files);
+        qDebug() << "DashboardWaylandCompositor: Found wayland sockets in" << runtimeDir << ":" << waylandSockets;
         
         // 驗證 socket 文件是否存在
         QFileInfo socketFile(actualSocketPath);
@@ -101,8 +130,16 @@ public:
             qDebug() << "DashboardWaylandCompositor: ✓ Socket file exists:" << actualSocketPath;
         } else {
             qWarning() << "DashboardWaylandCompositor: ✗ Socket file not found:" << actualSocketPath;
-            qWarning() << "DashboardWaylandCompositor: Socket may be created with a different name";
-            qWarning() << "DashboardWaylandCompositor: Check:" << runtimeDir << "for wayland-* files";
+            if (!waylandSockets.isEmpty()) {
+                qWarning() << "DashboardWaylandCompositor: But found other sockets:" << waylandSockets;
+                qWarning() << "DashboardWaylandCompositor: Please use the actual socket name:";
+                for (const QString &sock : waylandSockets) {
+                    qWarning() << "DashboardWaylandCompositor:   export WAYLAND_DISPLAY=" << sock;
+                }
+            } else {
+                qWarning() << "DashboardWaylandCompositor: No wayland sockets found in" << runtimeDir;
+                qWarning() << "DashboardWaylandCompositor: Socket creation may have failed";
+            }
         }
         
         qDebug() << "DashboardWaylandCompositor: Initialized";

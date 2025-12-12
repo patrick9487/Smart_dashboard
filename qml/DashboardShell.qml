@@ -263,6 +263,20 @@ ApplicationWindow {
             console.log("✓ Compositor 模式已啟用")
             console.log("Compositor XDG Shell:", Compositor.xdgShell ? "exists" : "null")
             console.log("Compositor WL Shell:", Compositor.wlShell ? "exists" : "null")
+            console.log("Compositor Socket Name:", Compositor.socketName())
+            
+            // 設置 output window（compositor 需要 window 才能創建 socket）
+            if (window && window.contentItem && window.contentItem.window) {
+                var qmlWindow = window.contentItem.window
+                console.log("Setting output window for compositor")
+                Compositor.setOutputWindow(qmlWindow)
+            } else {
+                // 嘗試使用 ApplicationWindow 的 window 屬性
+                console.log("Trying to get window from ApplicationWindow")
+                if (window) {
+                    Compositor.setOutputWindow(window)
+                }
+            }
             
             // 監聽表面創建
             Compositor.surfaceCreated.connect(function(surface) {

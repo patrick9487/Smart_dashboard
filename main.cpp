@@ -141,10 +141,31 @@ CONFIG_DONE:;
     }
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
-                     &app, [](QObject *obj, const QUrl &objUrl) {
+                     &app, [compositor, useCompositorMode](QObject *obj, const QUrl &objUrl) {
                          if (!obj) {
                              qCritical() << "QML root object not created for URL:" << objUrl;
                              QCoreApplication::exit(-1);
+                             return;
+                         }
+                         
+                         // 如果啟用了 compositor 模式，設置 output window
+                         if (useCompositorMode && compositor) {
+                             // 嘗試獲取 QML 窗口
+                             QQuickWindow *quickWindow = qobject_cast<QQuickWindow*>(obj);
+                             if (quickWindow) {
+                                 qDebug() << "Found QQuickWindow, setting output window";
+                                 compositor->setOutputWindow(quickWindow);
+                             } else {
+                                 // 如果沒有找到 QQuickWindow，嘗試從 ApplicationWindow 獲取
+                                 QObject *windowObj = obj->findChild<QObject*>("window");
+                                 if (windowObj) {
+                                     QQuickWindow *win = qobject_cast<QQuickWindow*>(windowObj);
+                                     if (win) {
+                                         qDebug() << "Found window from ApplicationWindow, setting output window";
+                                         compositor->setOutputWindow(win);
+                                     }
+                                 }
+                             }
                          }
                      }, Qt::QueuedConnection);
 
