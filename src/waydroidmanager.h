@@ -81,6 +81,9 @@ public:
     Q_INVOKABLE void stopSession() { QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("container"), QStringLiteral("stop")}); }
     Q_INVOKABLE void showFullUI() { QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("show-full-ui")}); }
     Q_INVOKABLE void launchApp(const QString &pkg) { QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("app"), QStringLiteral("launch"), pkg}); }
+    
+    // 創建視窗嵌入器（返回給 QML 使用）
+    Q_INVOKABLE QObject* createWindowEmbedder(const QString &pkg);
 
 signals:
     void runningChanged();

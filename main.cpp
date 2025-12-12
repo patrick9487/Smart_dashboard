@@ -9,6 +9,7 @@
 
 #include "AppConfig.h"
 #include "src/waydroidmanager.h"
+#include "src/windowembeditem.h"
 
 static void dumpQmlResources()
 {
@@ -92,6 +93,9 @@ CONFIG_DONE:;
 
     WaydroidManager waydroid;
     engine.rootContext()->setContextProperty("Waydroid", &waydroid);
+    
+    // 註冊 QML 類型
+    qmlRegisterType<WindowEmbedItem>("SmartDashboard", 1, 0, "WindowEmbedItem");
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [](QObject *obj, const QUrl &objUrl) {

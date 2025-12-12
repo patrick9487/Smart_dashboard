@@ -8,6 +8,8 @@ Item {
 
     readonly property bool waydroidAvailable: (typeof Waydroid !== "undefined") && Waydroid !== null
     readonly property bool waydroidRunning: waydroidAvailable && Waydroid.running
+    
+    signal appClicked(string packageName)
 
     // 整體背景（稍微透明，讓上方畫面隱約透出）
     Rectangle {
@@ -113,6 +115,9 @@ Item {
                     appTitle: model.label
                     packageId: model.package
                     enabled: waydroidRunning
+                    onAppClicked: function(pkg) {
+                        dock.appClicked(pkg)
+                    }
                 }
             }
         }

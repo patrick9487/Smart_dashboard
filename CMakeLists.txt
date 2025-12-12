@@ -15,6 +15,9 @@ qt_add_executable(appSmartDashboard
     AppConfig.h
     src/waydroidlauncher.h
     src/waydroidmanager.h
+    src/waydroidmanager.cpp
+    src/waydroidwindowembedder.h
+    src/windowembeditem.h
 )
 
 # 添加資源文件（配置文件）
@@ -42,6 +45,10 @@ qt_add_qml_module(appSmartDashboard
         qml/widgets/WarningWidget.qml
         qml/widgets/AppIcon.qml
         qml/widgets/AppDock.qml
+        qml/widgets/AppWindowEmbed.qml
+    SOURCES
+        src/windowembeditem.h
+        src/waydroidwindowembedder.h
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

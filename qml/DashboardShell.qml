@@ -19,6 +19,9 @@ ApplicationWindow {
     // Waydroid 是否有 app（用於隱藏 ODO/StatusBar）
     property bool appsAvailable: waydroidAvailable
                                  && Waydroid.appsModel.count > 0
+    
+    // 當前嵌入的應用視窗嵌入器
+    property var currentEmbedder: null
 
     // 背景漸層
     Rectangle {
@@ -127,6 +130,42 @@ ApplicationWindow {
         anchors.rightMargin: 0
         anchors.bottomMargin: 16   // 與視窗底部保留一點空間
         height: 150                // 稍微加高，讓 Dock 看起來更穩
+        
+        // 當點擊 AppIcon 時，創建嵌入器
+        onAppClicked: function(packageName) {
+            console.log("DashboardShell: App clicked, creating embedder for", packageName)
+            if (waydroidAvailable) {
+                // 如果已經有嵌入器，先停止它
+                if (currentEmbedder) {
+                    currentEmbedder.stopEmbedding()
+                    currentEmbedder = null
+                }
+                
+                // 創建新的嵌入器
+                currentEmbedder = Waydroid.createWindowEmbedder(packageName)
+                if (currentEmbedder) {
+                    console.log("DashboardShell: Embedder created successfully")
+                } else {
+                    console.error("DashboardShell: Failed to create embedder")
+                }
+            }
+        }
+    }
+    
+    // ================== 嵌入的應用視窗區域 ==================
+    // 當有嵌入器時，在速度表上方顯示嵌入的視窗
+    AppWindowEmbed {
+        id: appWindowEmbed
+        visible: currentEmbedder !== null
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: timeWidget.bottom
+        anchors.topMargin: 20
+        anchors.bottom: speed.top
+        anchors.bottomMargin: 20
+        anchors.leftMargin: 40
+        anchors.rightMargin: 40
+        embedder: currentEmbedder
     }
 
     // 調試輸出（可以在 QML 控制台看到）
