@@ -38,6 +38,29 @@ export SMART_DASHBOARD_COMPOSITOR=1
 export QT_WAYLAND_COMPOSITOR_SOCKET_NAME="$COMPOSITOR_SOCKET"
 export SMART_DASHBOARD_COMPOSITOR_SOCKET_NAME="$COMPOSITOR_SOCKET"
 
+# ===== 診斷選項 =====
+# 取消註釋以下行來測試不同的渲染模式：
+
+# 1. 強制使用軟體渲染（禁用 GPU 加速，測試 hardware cursor 問題）
+# export QT_QUICK_BACKEND=software
+
+# 2. 禁用 VSync（測試刷新同步問題）
+# export QSG_RENDER_LOOP=basic
+
+# 3. 強制使用 threaded render loop（默認）
+# export QSG_RENDER_LOOP=threaded
+
+# 4. 顯示 QML 渲染統計
+# export QSG_VISUALIZE=overdraw
+# export QSG_VISUALIZE=batches
+# export QSG_VISUALIZE=clip
+
+# 5. 禁用 VSYNC
+# export QSG_NO_VSYNC=1
+
+# 6. OpenGL 調試
+# export QSG_INFO=1
+
 # 注意：不要設置 WAYLAND_DISPLAY，讓 Qt 應用使用默認的顯示服務器
 # 我們創建的 compositor 是嵌套的，會創建自己的 socket
 # 其他應用（如 Waydroid）需要連接到這個 socket
