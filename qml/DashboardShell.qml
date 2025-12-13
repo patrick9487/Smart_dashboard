@@ -225,8 +225,10 @@ ApplicationWindow {
         
         // 當點擊 AppIcon 時，創建嵌入器或查找表面
         onAppClicked: function(packageName) {
+            console.log("========================================")
             console.log("DashboardShell: App clicked, package:", packageName)
             console.log("DashboardShell: Compositor mode:", compositorMode)
+            console.log("DashboardShell: Current surface count:", compositorSurfaceModel.count)
             
             if (compositorMode && waylandCompositor) {
                 // Compositor 模式：啟動應用並等待表面創建
@@ -234,8 +236,9 @@ ApplicationWindow {
                 
                 // 啟動應用（應用會連接到我們的 compositor）
                 if (waydroidAvailable) {
-                    console.log("DashboardShell: Launching app in compositor mode...")
+                    console.log("DashboardShell: Launching app via Waydroid.launchApp...")
                     Waydroid.launchApp(packageName)
+                    console.log("DashboardShell: launchApp called, waiting for surface...")
                     
                     // 等待表面創建（通過監聽 surfaceCreated 信號）
                     // 當表面創建時，waylandCompositor 會自動處理
@@ -270,6 +273,7 @@ ApplicationWindow {
     Repeater {
         model: compositorMode ? compositorSurfaceModel : 0
         delegate: WaylandQuickItem {
+            id: surfaceItem
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: timeWidget.bottom
@@ -279,11 +283,25 @@ ApplicationWindow {
             anchors.leftMargin: 40
             anchors.rightMargin: 40
             surface: model.surface
-            visible: compositorMode && model.surface
+            visible: compositorMode && model.surface && model.surface.hasContent
             
-            // 設置輸入處理，避免雙滑鼠游標問題
-            // WaylandQuickItem 會自動處理輸入事件，但我們需要確保它正確啟用
+            // 輸入處理設置
             enabled: true
+            focusOnClick: true  // 點擊時獲取焦點
+            
+            // 平滑過渡，減少閃爍
+            opacity: model.surface && model.surface.hasContent ? 1.0 : 0.0
+            Behavior on opacity {
+                NumberAnimation { duration: 150 }
+            }
+            
+            Component.onCompleted: {
+                console.log("WaylandQuickItem created for surface:", model.surface)
+            }
+            
+            Component.onDestruction: {
+                console.log("WaylandQuickItem destroyed")
+            }
         }
     }
     
