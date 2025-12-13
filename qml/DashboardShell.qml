@@ -61,8 +61,8 @@ ApplicationWindow {
     // 這裡用 WaylandCursorItem 做 software cursor（A/B 驗證硬體 cursor plane 閃爍）。
     WaylandCursorItem {
         id: softwareCursor
-        visible: compositorMode && xdgShellHelper.seat
-        seat: xdgShellHelper.seat
+        // 有些 Qt 版本的 WaylandCursorItem 不需要/不支援 seat 綁定；保守起見只顯示即可
+        visible: compositorMode
     }
     
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
@@ -292,24 +292,15 @@ ApplicationWindow {
         visible: compositorMode
         z: 10
 
-        // WaylandMouseTracker 會把 Qt Quick 的滑鼠事件轉換成 Wayland seat 的 pointer/keyboard 事件
-        // 這是「點得到」的規範用法（沒有 tracker 很常會完全收不到點擊/滾輪）
-        WaylandMouseTracker {
-            id: mouseTracker
-            anchors.fill: parent
-            seat: xdgShellHelper.seat
+        Repeater {
+            model: compositorSurfaceModel
+            delegate: WaylandQuickItem {
+                surface: model.surface
+                anchors.fill: parent
+                focusOnClick: true
 
-            Repeater {
-                model: compositorSurfaceModel
-                delegate: WaylandQuickItem {
-                    surface: model.surface
-                    anchors.fill: parent
-                    // 讓 item 可以取得焦點（鍵盤輸入）
-                    focusOnClick: true
-
-                    Component.onCompleted: {
-                        console.log("WaylandQuickItem created for surface:", model.surface)
-                    }
+                Component.onCompleted: {
+                    console.log("WaylandQuickItem created for surface:", model.surface)
                 }
             }
         }

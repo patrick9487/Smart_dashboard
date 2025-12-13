@@ -39,6 +39,15 @@ void XdgShellHelper::setCompositor(QObject *comp)
     m_seat->setProperty("name", QStringLiteral("seat0"));
     qInfo() << "XdgShellHelper: Wayland seat created (objectName):" << m_seat->objectName();
 
+    // 讓 compositor 使用這個 seat 作為 default seat（避免需要 WaylandMouseTracker.seat 這種版本不一致的 QML API）
+    // 使用 meta-call，若該 Qt 版本沒有這個方法也不會編譯失敗/崩潰，只是返回 false。
+    const bool defaultSeatOk = QMetaObject::invokeMethod(
+        m_waylandCompositor,
+        "setDefaultSeat",
+        Q_ARG(QWaylandSeat*, m_seat)
+    );
+    qInfo() << "XdgShellHelper: setDefaultSeat invoke ok =" << defaultSeatOk;
+
     // 在現有 compositor 上建立 QWaylandXdgShell 擴充
     m_xdgShell = new QWaylandXdgShell(m_waylandCompositor);
 
