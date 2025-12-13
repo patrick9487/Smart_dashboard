@@ -54,6 +54,20 @@ ApplicationWindow {
         sizeFollowsWindow: true
         window: window  // 連接到 ApplicationWindow
     }
+
+    // ================== Wayland 輸入（關鍵） ==================
+    // 沒有 seat/pointer 的情況下，surface 可能「看得到但點不到」。
+    // 這裡建立一個 seat，並使用 WaylandCursorItem（software cursor）來避免硬體 cursor plane 相關閃爍。
+    WaylandSeat {
+        id: seat
+        compositor: waylandCompositor
+        name: "seat0"
+
+        // 使用 software cursor（GL/scene graph 繪製），避免硬體 cursor plane/overlay 切換造成閃爍
+        cursor: WaylandCursorItem {
+            seat: seat
+        }
+    }
     
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
     WaylandCompositor {
@@ -281,22 +295,25 @@ ApplicationWindow {
         anchors.rightMargin: 40
         visible: compositorMode
         z: 10
-        
-        // layer.enabled 強制走 texture 路徑，可能減少閃爍
-        // 如果還是閃爍，改成 false 測試
-        layer.enabled: true
-        
-        Repeater {
-            model: compositorSurfaceModel
-            delegate: WaylandQuickItem {
-                surface: model.surface
-                anchors.fill: parent
-                
-                // 正常啟用輸入
-                inputEventsEnabled: true
-                
-                Component.onCompleted: {
-                    console.log("WaylandQuickItem created for surface:", model.surface)
+
+        // WaylandMouseTracker 會把 Qt Quick 的滑鼠事件轉換成 Wayland seat 的 pointer/keyboard 事件
+        // 這是「點得到」的規範用法（沒有 tracker 很常會完全收不到點擊/滾輪）
+        WaylandMouseTracker {
+            id: mouseTracker
+            anchors.fill: parent
+            seat: seat
+
+            Repeater {
+                model: compositorSurfaceModel
+                delegate: WaylandQuickItem {
+                    surface: model.surface
+                    anchors.fill: parent
+                    // 讓 item 可以取得焦點（鍵盤輸入）
+                    focusOnClick: true
+
+                    Component.onCompleted: {
+                        console.log("WaylandQuickItem created for surface:", model.surface)
+                    }
                 }
             }
         }
