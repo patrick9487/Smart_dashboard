@@ -35,16 +35,18 @@ ApplicationWindow {
         ("Compositor 模式" + (compositorSurfaceModel.count > 0 ? " [有表面]" : " [無表面]")) : 
         "視窗疊加模式"
     
+    // 啟用 XDG Shell 協議，讓 Waydroid 等 xdg-shell client 可以連線
+    // 這是讓 Waydroid 能正確創建視窗的關鍵！
+    // 注意：必須放在 WaylandCompositor 外面，因為 WaylandCompositor 沒有 default property
+    XdgShellHelper {
+        id: xdgShellHelper
+        compositor: waylandCompositor
+    }
+    
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
     WaylandCompositor {
-        id: compositor
+        id: waylandCompositor
         socketName: "wayland-smartdashboard-0"
-        
-        // 啟用 XDG Shell 協議，讓 Waydroid 等 xdg-shell client 可以連線
-        // 這是讓 Waydroid 能正確創建視窗的關鍵！
-        XdgShellHelper {
-            compositor: compositor
-        }
         
         // 創建 WaylandOutput 並連接到我們的 ApplicationWindow
         // 參考專案：WaylandOutput 需要一個 Window，我們使用現有的 ApplicationWindow
@@ -308,11 +310,11 @@ ApplicationWindow {
         console.log("DashboardShell loaded")
         console.log("Waydroid available:", waydroidAvailable)
         console.log("Compositor mode:", compositorMode)
-        console.log("Compositor object:", compositor ? "exists" : "undefined")
+        console.log("Compositor object:", waylandCompositor ? "exists" : "undefined")
         
-        if (compositorMode && compositor) {
+        if (compositorMode && waylandCompositor) {
             console.log("✓ Compositor 模式已啟用")
-            console.log("Compositor Socket Name:", compositor.socketName)
+            console.log("Compositor Socket Name:", waylandCompositor.socketName)
             console.log("Compositor created, waiting for surfaces...")
         } else {
             console.log("⚠ Compositor 模式未啟用 - 使用視窗疊加模式")
