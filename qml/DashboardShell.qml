@@ -282,68 +282,24 @@ ApplicationWindow {
         visible: compositorMode
         z: 10
         
-        // 強制每幀重繪整個區域（測試 damage region 問題）
-        layer.enabled: true  // 開啟 layer 強制完整重繪
-        layer.smooth: true
+        // layer.enabled 強制走 texture 路徑，可能減少閃爍
+        // 如果還是閃爍，改成 false 測試
+        layer.enabled: true
         
         Repeater {
             model: compositorSurfaceModel
             delegate: WaylandQuickItem {
-                id: surfaceItem
                 surface: model.surface
                 anchors.fill: parent
                 
-                // ===== 診斷選項 =====
-                // 1. 禁用輸入事件（測試是否是 pointer enter/leave 觸發問題）
-                inputEventsEnabled: false  // 改為 true 啟用輸入
-                
-                // 2. 禁用 buffer lock（可能影響 damage 計算）
-                bufferLocked: false
-                
-                // 3. 強制使用 texture（禁用 direct scanout）
-                // WaylandQuickItem 沒有直接的 direct scanout 控制
-                // 但 layer.enabled 在父層已經強制走 texture
-                
-                // 4. 設置 updateMode 為每幀更新
-                // Qt 6 的 WaylandQuickItem 沒有 updateMode 屬性
-                // 但我們可以用 Timer 強制刷新
+                // 正常啟用輸入
+                inputEventsEnabled: true
                 
                 Component.onCompleted: {
-                    console.log("WaylandQuickItem created:", model.surface)
-                    console.log("  inputEventsEnabled:", inputEventsEnabled)
-                    console.log("  bufferLocked:", bufferLocked)
-                }
-                
-                // 監聯 surface 變化
-                onSurfaceChanged: {
-                    console.log("Surface changed to:", surface)
+                    console.log("WaylandQuickItem created for surface:", model.surface)
                 }
             }
         }
-        
-        // ===== 診斷：強制每 16ms 刷新（測試 damage 問題）=====
-        Timer {
-            id: forceRepaintTimer
-            interval: 16  // ~60fps
-            repeat: true
-            running: true  // 改為 false 禁用強制刷新
-            onTriggered: {
-                // 強制觸發重繪
-                appArea.update()
-            }
-        }
-    }
-    
-    // ===== 診斷訊息 =====
-    Text {
-        anchors.bottom: appArea.top
-        anchors.horizontalCenter: appArea.horizontalCenter
-        text: "診斷模式: layer=" + appArea.layer.enabled + 
-              ", forceRepaint=" + forceRepaintTimer.running +
-              ", surfaces=" + compositorSurfaceModel.count
-        color: "#88ffff00"
-        font.pixelSize: 10
-        visible: compositorMode
     }
     
     // 視窗疊加模式：當 compositor 模式未啟用時使用
