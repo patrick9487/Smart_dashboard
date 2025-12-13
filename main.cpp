@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QDebug>
+#include <QStandardPaths>
 
 #include "AppConfig.h"
 #include "src/waydroidmanager.h"
