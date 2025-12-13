@@ -10,9 +10,9 @@
 #include "AppConfig.h"
 #include "src/waydroidmanager.h"
 #include "src/windowembeditem.h"
-#include "src/waylandcompositor.h"
-#include "src/surfaceitem.h"
 #include "src/xdgshellhelper.h"
+// 注意：不再使用自定義的 waylandcompositor.h 和 surfaceitem.h
+// 直接使用 QtWayland.Compositor 的 QML WaylandCompositor
 
 static void dumpQmlResources()
 {
@@ -135,11 +135,8 @@ CONFIG_DONE:;
     // 註冊 QML 類型
     qmlRegisterType<WindowEmbedItem>("SmartDashboard", 1, 0, "WindowEmbedItem");
     
-    // 註冊 Wayland Compositor 類型（真正的 compositor 模式）
-    qmlRegisterType<DashboardWaylandCompositor>("SmartDashboard", 1, 0, "WaylandCompositor");
-    qmlRegisterType<SurfaceItem>("SmartDashboard", 1, 0, "SurfaceItem");
-    
     // 註冊 XdgShellHelper（啟用 XDG Shell 協議，讓 Waydroid 等 client 可以連線）
+    // 注意：不再註冊自定義的 WaylandCompositor，直接使用 QtWayland.Compositor 的
     qmlRegisterType<XdgShellHelper>("SmartDashboard", 1, 0, "XdgShellHelper");
     
     // 注意：如果啟用 compositor 模式，我們將在 QML 中使用 WaylandCompositor（QtWayland.Compositor）

@@ -18,10 +18,10 @@ qt_add_executable(appSmartDashboard
     src/waydroidmanager.cpp
     src/waydroidwindowembedder.h
     src/windowembeditem.h
-    src/waylandcompositor.h
-    src/surfaceitem.h
     src/xdgshellhelper.h
     src/xdgshellhelper.cpp
+    # 注意：不再使用 waylandcompositor.h 和 surfaceitem.h
+    # 直接使用 QtWayland.Compositor 的 QML WaylandCompositor
 )
 
 # 添加資源文件（配置文件）
