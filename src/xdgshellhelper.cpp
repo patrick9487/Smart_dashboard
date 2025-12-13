@@ -34,8 +34,10 @@ void XdgShellHelper::setCompositor(QObject *comp)
     // 在現有 compositor 上建立 seat（讓 client 可以收到 pointer/keyboard）
     // 注意：有些 Qt build 的 QML WaylandSeat 是 uncreatable，必須由 C++ 建立後再暴露到 QML。
     m_seat = new QWaylandSeat(m_waylandCompositor);
-    m_seat->setName(QStringLiteral("seat0"));
-    qInfo() << "XdgShellHelper: Wayland seat created:" << m_seat->name();
+    // Qt 版本差異：有些版本的 QWaylandSeat 沒有 setName()/name()，用 objectName + 動態 property 兼容
+    m_seat->setObjectName(QStringLiteral("seat0"));
+    m_seat->setProperty("name", QStringLiteral("seat0"));
+    qInfo() << "XdgShellHelper: Wayland seat created (objectName):" << m_seat->objectName();
 
     // 在現有 compositor 上建立 QWaylandXdgShell 擴充
     m_xdgShell = new QWaylandXdgShell(m_waylandCompositor);
