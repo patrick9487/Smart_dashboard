@@ -35,32 +35,30 @@ ApplicationWindow {
         ("Compositor 模式" + (compositorSurfaceModel.count > 0 ? " [有表面]" : " [無表面]")) : 
         "視窗疊加模式"
     
+    // 用 ListModel 來保存 compositor surface，讓 Repeater 能正確感知 model 變化
+    ListModel {
+        id: compositorSurfaceModel
+    }
+    
     // 啟用 XDG Shell 協議，讓 Waydroid 等 xdg-shell client 可以連線
     // 這是讓 Waydroid 能正確創建視窗的關鍵！
-    // 注意：必須放在 WaylandCompositor 外面，因為 WaylandCompositor 沒有 default property
     XdgShellHelper {
         id: xdgShellHelper
         compositor: waylandCompositor
+    }
+    
+    // WaylandOutput - 連接到我們的 ApplicationWindow
+    WaylandOutput {
+        id: waylandOutput
+        compositor: waylandCompositor
+        sizeFollowsWindow: true
+        window: window  // 連接到 ApplicationWindow
     }
     
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
     WaylandCompositor {
         id: waylandCompositor
         socketName: "wayland-smartdashboard-0"
-        
-        // 創建 WaylandOutput 並連接到我們的 ApplicationWindow
-        // 參考專案：WaylandOutput 需要一個 Window，我們使用現有的 ApplicationWindow
-        WaylandOutput {
-            id: output
-            sizeFollowsWindow: true
-            window: window  // 連接到 ApplicationWindow
-        }
-        
-        // 用 ListModel 來保存 surface，讓 Repeater 能正確感知 model 變化
-        // 參考專案的做法
-        ListModel {
-            id: compositorSurfaceModel
-        }
         
         // 監聯表面創建
         onSurfaceCreated: function(surface) {
