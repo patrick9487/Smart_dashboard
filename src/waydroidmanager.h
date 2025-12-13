@@ -71,9 +71,11 @@ public:
         , m_apps(new AppsModel(this))
         , m_refreshing(false)
         , m_refreshProcess(nullptr)
+        , m_startupDelayDone(false)
+        , m_refreshRetryCount(0)
     {
         connect(&m_timer, &QTimer::timeout, this, &WaydroidManager::checkStatus);
-        m_timer.start(2000);
+        m_timer.start(3000);  // 改為 3 秒，給 Waydroid 更多時間
         checkStatus();
     }
 
@@ -108,14 +110,23 @@ public slots:
                 qDebug() << "WaydroidManager::checkStatus() - state changed to:" << m_running;
                 emit runningChanged();
                 if (m_running) {
-                    qDebug() << "WaydroidManager::checkStatus() - calling refreshApps()";
-                    refreshApps();
+                    // Waydroid 剛啟動，等待 8 秒讓它完全初始化
+                    // （"Failed to get service waydroidplatform" 表示還沒準備好）
+                    m_startupDelayDone = false;
+                    m_refreshRetryCount = 0;
+                    qDebug() << "WaydroidManager::checkStatus() - Waydroid just started, waiting 8s for initialization...";
+                    QTimer::singleShot(8000, this, [this]() {
+                        m_startupDelayDone = true;
+                        qDebug() << "WaydroidManager: Startup delay done, now refreshing apps";
+                        refreshApps();
+                    });
                 } else {
+                    m_startupDelayDone = false;
                     m_apps->setApps({});
                 }
-            } else if (m_running && m_apps->rowCount() == 0) {
-                // 只在 app 列表為空時才刷新（避免頻繁請求）
-                qDebug() << "WaydroidManager::checkStatus() - Waydroid running but no apps, refreshing";
+            } else if (m_running && m_apps->rowCount() == 0 && m_startupDelayDone && m_refreshRetryCount < 5) {
+                // 只在啟動延遲完成後且重試次數 < 5 時才刷新
+                qDebug() << "WaydroidManager::checkStatus() - Waydroid running but no apps, retry" << m_refreshRetryCount;
                 refreshApps();
             }
         });
@@ -135,28 +146,46 @@ public slots:
             return;
         }
         m_refreshing = true;
+        m_refreshRetryCount++;
 
-        qDebug() << "WaydroidManager::refreshApps() - fetching app list";
+        qDebug() << "WaydroidManager::refreshApps() - fetching app list (attempt" << m_refreshRetryCount << ")";
         m_refreshProcess = new QProcess(this);
         auto *process = m_refreshProcess;
         
-        // 超時處理（10 秒）
-        QTimer *timeout = new QTimer(this);
-        timeout->setSingleShot(true);
-        connect(timeout, &QTimer::timeout, this, [this, process, timeout]() {
-            qWarning() << "WaydroidManager::refreshApps() - TIMEOUT after 10s, killing process";
-            if (process->state() != QProcess::NotRunning) {
-                process->kill();
+        // 超時處理（30 秒，Waydroid 初始化可能很慢）
+        m_refreshTimeout = new QTimer(this);
+        m_refreshTimeout->setSingleShot(true);
+        connect(m_refreshTimeout, &QTimer::timeout, this, [this]() {
+            qWarning() << "WaydroidManager::refreshApps() - TIMEOUT after 30s";
+            m_refreshing = false;
+            if (m_refreshProcess && m_refreshProcess->state() != QProcess::NotRunning) {
+                // 斷開信號連接，避免 finished 處理器被調用
+                m_refreshProcess->disconnect();
+                m_refreshProcess->kill();
+                m_refreshProcess->waitForFinished(1000);
+                m_refreshProcess->deleteLater();
+                m_refreshProcess = nullptr;
             }
-            timeout->deleteLater();
         });
-        timeout->start(10000);
+        m_refreshTimeout->start(30000);
         
-        connect(process, &QProcess::finished, this, [this, process, timeout](int exitCode, QProcess::ExitStatus) {
-            timeout->stop();
-            timeout->deleteLater();
+        connect(process, &QProcess::finished, this, [this, process](int exitCode, QProcess::ExitStatus exitStatus) {
+            // 停止超時計時器
+            if (m_refreshTimeout) {
+                m_refreshTimeout->stop();
+                m_refreshTimeout->deleteLater();
+                m_refreshTimeout = nullptr;
+            }
+            
             m_refreshing = false;
             m_refreshProcess = nullptr;
+            
+            // 如果是被 kill 的（超時），直接返回
+            if (exitStatus == QProcess::CrashExit) {
+                qWarning() << "WaydroidManager::refreshApps() - process was killed or crashed";
+                process->deleteLater();
+                return;
+            }
             QVector<AppEntry> apps;
             const QString output = QString::fromUtf8(process->readAllStandardOutput());
             const QString error = QString::fromUtf8(process->readAllStandardError());
@@ -306,4 +335,7 @@ private:
     AppsModel *m_apps;
     bool m_refreshing;
     QProcess *m_refreshProcess;
+    QTimer *m_refreshTimeout = nullptr;
+    bool m_startupDelayDone;
+    int m_refreshRetryCount;
 };
