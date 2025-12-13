@@ -268,46 +268,30 @@ ApplicationWindow {
     }
     
     // ================== 嵌入的應用視窗區域 ==================
-    // Compositor 模式：只顯示最上層的 surface（避免多個 surface 疊加造成 glitch）
-    Repeater {
-        model: compositorMode ? compositorSurfaceModel : 0
-        delegate: WaylandQuickItem {
-            id: surfaceItem
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: timeWidget.bottom
-            anchors.topMargin: 20
-            anchors.bottom: speed.top
-            anchors.bottomMargin: 20
-            anchors.leftMargin: 40
-            anchors.rightMargin: 40
-            surface: model.surface
-            
-            // 只顯示最後一個（最上層的）surface，其他的隱藏
-            // 這樣可以避免多個 surface 疊加造成 glitch
-            visible: compositorMode && model.surface && (index === compositorSurfaceModel.count - 1)
-            
-            // 輸入處理設置
-            enabled: visible
-            focusOnClick: true
-            
-            // 平滑過渡
-            opacity: visible ? 1.0 : 0.0
-            Behavior on opacity {
-                NumberAnimation { duration: 100 }
-            }
-            
-            // 滑鼠進入時隱藏系統游標
-            MouseArea {
+    // Compositor 模式：顯示 Wayland surface（參考 dashboard_compositor 專案的簡單做法）
+    Item {
+        id: appArea
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: timeWidget.bottom
+        anchors.topMargin: 20
+        anchors.bottom: speed.top
+        anchors.bottomMargin: 20
+        anchors.leftMargin: 40
+        anchors.rightMargin: 40
+        visible: compositorMode
+        z: 10  // 確保在儀表板之上
+        
+        Repeater {
+            model: compositorSurfaceModel
+            delegate: WaylandQuickItem {
+                // 參考專案的簡單做法：直接綁定 surface，填滿 parent
+                surface: model.surface
                 anchors.fill: parent
-                hoverEnabled: true
-                acceptedButtons: Qt.NoButton
-                cursorShape: Qt.BlankCursor
-                propagateComposedEvents: true
-            }
-            
-            Component.onCompleted: {
-                console.log("WaylandQuickItem created, index:", index, "surface:", model.surface)
+                
+                Component.onCompleted: {
+                    console.log("WaylandQuickItem created for surface:", model.surface)
+                }
             }
         }
     }
