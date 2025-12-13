@@ -66,6 +66,12 @@ set_target_properties(appSmartDashboard PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
+# 添加 src 目錄到 include 路徑（讓 MOC 能找到 header 文件）
+target_include_directories(appSmartDashboard PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
 target_link_libraries(appSmartDashboard
     PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Gui Qt6::WaylandCompositor
 )
