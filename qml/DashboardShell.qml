@@ -269,50 +269,46 @@ ApplicationWindow {
     
     // ================== 嵌入的應用視窗區域 ==================
     // Compositor 模式：只顯示最上層的 surface（避免多個 surface 疊加造成 glitch）
-    // 使用單一 WaylandQuickItem 綁定到最新的 surface
-    WaylandQuickItem {
-        id: mainSurfaceItem
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: timeWidget.bottom
-        anchors.topMargin: 20
-        anchors.bottom: speed.top
-        anchors.bottomMargin: 20
-        anchors.leftMargin: 40
-        anchors.rightMargin: 40
-        
-        // 只綁定最新的（最上層的）surface
-        surface: compositorMode && compositorSurfaceModel.count > 0 
-                 ? compositorSurfaceModel.get(compositorSurfaceModel.count - 1).surface 
-                 : null
-        visible: compositorMode && surface && surface.hasContent
-        
-        // 輸入處理設置
-        enabled: true
-        focusOnClick: true  // 點擊時獲取焦點
-        
-        // 平滑過渡，減少閃爍
-        opacity: surface && surface.hasContent ? 1.0 : 0.0
-        Behavior on opacity {
-            NumberAnimation { duration: 100 }
-        }
-        
-        // 滑鼠進入時隱藏系統游標，讓 Android 的游標顯示
-        MouseArea {
-            id: cursorHider
-            anchors.fill: parent
-            hoverEnabled: true
-            acceptedButtons: Qt.NoButton  // 不攔截點擊，讓 WaylandQuickItem 處理
-            cursorShape: Qt.BlankCursor   // 隱藏系統游標
-            propagateComposedEvents: true
-        }
-        
-        Component.onCompleted: {
-            console.log("Main WaylandQuickItem ready")
-        }
-        
-        onSurfaceChanged: {
-            console.log("Main surface changed to:", surface)
+    Repeater {
+        model: compositorMode ? compositorSurfaceModel : 0
+        delegate: WaylandQuickItem {
+            id: surfaceItem
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: timeWidget.bottom
+            anchors.topMargin: 20
+            anchors.bottom: speed.top
+            anchors.bottomMargin: 20
+            anchors.leftMargin: 40
+            anchors.rightMargin: 40
+            surface: model.surface
+            
+            // 只顯示最後一個（最上層的）surface，其他的隱藏
+            // 這樣可以避免多個 surface 疊加造成 glitch
+            visible: compositorMode && model.surface && (index === compositorSurfaceModel.count - 1)
+            
+            // 輸入處理設置
+            enabled: visible
+            focusOnClick: true
+            
+            // 平滑過渡
+            opacity: visible ? 1.0 : 0.0
+            Behavior on opacity {
+                NumberAnimation { duration: 100 }
+            }
+            
+            // 滑鼠進入時隱藏系統游標
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.NoButton
+                cursorShape: Qt.BlankCursor
+                propagateComposedEvents: true
+            }
+            
+            Component.onCompleted: {
+                console.log("WaylandQuickItem created, index:", index, "surface:", model.surface)
+            }
         }
     }
     
