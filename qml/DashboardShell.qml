@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtWayland.Compositor
+import SmartDashboard 1.0
 import "widgets"
 
 ApplicationWindow {
@@ -38,6 +39,12 @@ ApplicationWindow {
     WaylandCompositor {
         id: compositor
         socketName: "wayland-smartdashboard-0"
+        
+        // 啟用 XDG Shell 協議，讓 Waydroid 等 xdg-shell client 可以連線
+        // 這是讓 Waydroid 能正確創建視窗的關鍵！
+        XdgShellHelper {
+            compositor: compositor
+        }
         
         // 創建 WaylandOutput 並連接到我們的 ApplicationWindow
         // 參考專案：WaylandOutput 需要一個 Window，我們使用現有的 ApplicationWindow

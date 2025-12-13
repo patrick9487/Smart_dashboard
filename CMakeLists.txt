@@ -20,6 +20,8 @@ qt_add_executable(appSmartDashboard
     src/windowembeditem.h
     src/waylandcompositor.h
     src/surfaceitem.h
+    src/xdgshellhelper.h
+    src/xdgshellhelper.cpp
 )
 
 # 添加資源文件（配置文件）
