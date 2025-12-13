@@ -56,17 +56,13 @@ ApplicationWindow {
     }
 
     // ================== Wayland 輸入（關鍵） ==================
-    // 沒有 seat/pointer 的情況下，surface 可能「看得到但點不到」。
-    // 這裡建立一個 seat，並使用 WaylandCursorItem（software cursor）來避免硬體 cursor plane 相關閃爍。
-    WaylandSeat {
-        id: seat
-        compositor: waylandCompositor
-        name: "seat0"
-
-        // 使用 software cursor（GL/scene graph 繪製），避免硬體 cursor plane/overlay 切換造成閃爍
-        cursor: WaylandCursorItem {
-            seat: seat
-        }
+    // Linux 上某些 Qt build 的 QML WaylandSeat 是「不可在 QML 建立」的（會報 Type cannot be created）。
+    // 我們改由 C++（XdgShellHelper）建立 QWaylandSeat，並透過 xdgShellHelper.seat 暴露給 QML。
+    // 這裡用 WaylandCursorItem 做 software cursor（A/B 驗證硬體 cursor plane 閃爍）。
+    WaylandCursorItem {
+        id: softwareCursor
+        visible: compositorMode && xdgShellHelper.seat
+        seat: xdgShellHelper.seat
     }
     
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
@@ -301,7 +297,7 @@ ApplicationWindow {
         WaylandMouseTracker {
             id: mouseTracker
             anchors.fill: parent
-            seat: seat
+            seat: xdgShellHelper.seat
 
             Repeater {
                 model: compositorSurfaceModel
