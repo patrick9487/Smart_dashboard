@@ -124,9 +124,10 @@ public slots:
                     m_startupDelayDone = false;
                     m_apps->setApps({});
                 }
-            } else if (m_running && m_apps->rowCount() == 0 && m_startupDelayDone && m_refreshRetryCount < 5) {
-                // 只在啟動延遲完成後且重試次數 < 5 時才刷新
-                qDebug() << "WaydroidManager::checkStatus() - Waydroid running but no apps, retry" << m_refreshRetryCount;
+            } else if (m_running && m_startupDelayDone && m_refreshRetryCount < 10) {
+                // 持續刷新 app 列表（前 10 次），因為 Android 啟動時 app 會陸續出現
+                // 即使已經有一些 app，也要繼續刷新以獲取完整列表
+                qDebug() << "WaydroidManager::checkStatus() - Waydroid running, refreshing apps (attempt" << m_refreshRetryCount << ")";
                 refreshApps();
             }
         });
