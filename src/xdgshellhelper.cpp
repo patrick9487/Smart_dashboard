@@ -81,3 +81,13 @@ void XdgShellHelper::setCompositor(QObject *comp)
     emit seatChanged();
 }
 
+void XdgShellHelper::closeAllToplevels()
+{
+    qInfo() << "XdgShellHelper::closeAllToplevels() - sending close to"
+            << m_toplevels.size() << "toplevels";
+    for (int i = m_toplevels.size() - 1; i >= 0; --i) {
+        if (!m_toplevels[i].isNull()) {
+            m_toplevels[i]->sendClose();
+        }
+    }
+}
