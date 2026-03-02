@@ -39,16 +39,19 @@ public:
     void setCompositor(QObject *comp);
     QObject *seat() const { return m_seat; }
 
+    // 關閉所有 toplevel（從「返回」按鈕呼叫）
+    Q_INVOKABLE void closeAllToplevels();
+
 signals:
     void compositorChanged();
     void seatChanged();
     // 只有 XDG toplevel surface（真正的 app 視窗）才會觸發這個信號。
-    // QML 端應該用這個信號來加入 surface model，而不是 WaylandCompositor.onSurfaceCreated。
     void toplevelSurfaceCreated(QWaylandSurface *surface);
 
 private:
     QPointer<QWaylandCompositor> m_waylandCompositor;
     QPointer<QWaylandXdgShell> m_xdgShell;
     QPointer<QWaylandSeat> m_seat;
+    QList<QPointer<QWaylandXdgToplevel>> m_toplevels;
 };
 

@@ -51,14 +51,28 @@ void XdgShellHelper::setCompositor(QObject *comp)
     // 在現有 compositor 上建立 QWaylandXdgShell 擴充
     m_xdgShell = new QWaylandXdgShell(m_waylandCompositor);
 
-    // 當 client 建立 xdg_toplevel 時，發射信號給 QML 加入 surface model。
-    // 只有 toplevel（真正的 app 視窗）才會觸發，cursor/subsurface/popup 都不會。
+    // 當 client 建立 xdg_toplevel 時：
+    //  1) 發送 fullscreen configure → 告訴 client 以全螢幕渲染（無裝飾、填滿螢幕）
+    //  2) 發射 toplevelSurfaceCreated 給 QML
     QObject::connect(m_xdgShell, &QWaylandXdgShell::toplevelCreated,
                      this, [this](QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *xdgSurface) {
-        Q_UNUSED(toplevel);
         QWaylandSurface *surface = xdgSurface->surface();
         qInfo() << "XdgShellHelper: xdg toplevel created, surface =" << surface
                 << "size =" << surface->destinationSize();
+
+        // ★ 告訴 client 全螢幕（去掉標題欄 + 裝飾邊框 + 填滿輸出）
+        toplevel->sendFullscreen(QSize(1280, 720));
+
+        // 記住 toplevel，以便之後能 sendClose
+        m_toplevels.append(toplevel);
+        QObject::connect(toplevel, &QObject::destroyed, this, [this]() {
+            // 清理已銷毀的 QPointer（會自動變 null）
+            for (int i = m_toplevels.size() - 1; i >= 0; --i) {
+                if (m_toplevels[i].isNull())
+                    m_toplevels.removeAt(i);
+            }
+        });
+
         emit toplevelSurfaceCreated(surface);
     });
 

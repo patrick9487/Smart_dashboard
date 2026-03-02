@@ -406,6 +406,9 @@ ApplicationWindow {
             anchors.verticalCenter: notch.verticalCenter
             text: qsTr("返回")
             onClicked: {
+                // 1. 送 XDG close 給所有 toplevel（讓 Waydroid 關閉視窗）
+                xdgShellHelper.closeAllToplevels()
+                // 2. 退出 app 模式，回到 dashboard
                 appMode = false
             }
         }
