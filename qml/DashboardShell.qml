@@ -300,6 +300,9 @@ ApplicationWindow {
                 surface: model.surface
                 anchors.fill: parent
                 focusOnClick: true
+                // 多個 surface 同時顯示會像「一堆浮動視窗」疊在一起；
+                // 這裡只顯示最上層（最後建立/最新加入 model 的）surface。
+                visible: index === compositorSurfaceModel.count - 1
 
                 Component.onCompleted: {
                     console.log("WaylandQuickItem created for surface:", model.surface)
