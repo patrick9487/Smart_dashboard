@@ -66,18 +66,10 @@ ApplicationWindow {
     // WaylandCursorItem 已移除：它會產生額外的軟體游標，與系統游標疊在一起變成雙游標。
     // 輸入由 C++（XdgShellHelper）建立的 QWaylandSeat 處理。
     
-    // ================== Frame callback 機制（防止 Waydroid 黑畫面）==================
-    // Wayland client 渲染完一幀後會等 compositor 送出 frame callback，
-    // 才會繼續渲染下一幀。若 callback 沒有送出，client 停在第一幀然後黑畫面。
-    // 解法：每次視窗完成一次 GPU frame swap 後，對 waylandOutput 送 callback。
-    Connections {
-        target: window
-        function onAfterRendering() {
-            if (compositorMode) {
-                waylandOutput.sendFrameCallbacks()
-            }
-        }
-    }
+    // ================== Frame callback ==================
+    // WaylandQuickItem 只要在 scene graph 裡被渲染（visible = true），
+    // 就會自動處理 frame callback，無需手動呼叫 sendFrameCallbacks()。
+    // 之前手動呼叫反而在某些 Qt 版本觸發 TypeError / removeView 警告。
 
     // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
     WaylandCompositor {
@@ -340,15 +332,12 @@ ApplicationWindow {
                 surface: model.surface
                 anchors.fill: parent
                 focusOnClick: true
-                // 綁定正確的 output，確保 frame callback 能找到這個 surface
-                output: waylandOutput
 
                 // 多個 surface 只顯示最上層
                 visible: index === compositorSurfaceModel.count - 1
 
                 Component.onCompleted: {
-                    console.log("WaylandQuickItem created for surface:", model.surface,
-                                "output:", waylandOutput)
+                    console.log("WaylandQuickItem created for surface:", model.surface)
                 }
             }
         }
