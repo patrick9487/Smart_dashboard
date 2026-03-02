@@ -125,6 +125,7 @@ ApplicationWindow {
     // 左上時間
     TimeWidget {
         id: timeWidget
+        z: 30
         anchors.left: parent.left
         anchors.leftMargin: 24
         anchors.top: parent.top
@@ -134,6 +135,7 @@ ApplicationWindow {
     // 調試：顯示當前模式（右上角）
     Text {
         id: modeIndicator
+        z: 30
         anchors.right: parent.right
         anchors.rightMargin: 24
         anchors.top: parent.top
@@ -147,6 +149,7 @@ ApplicationWindow {
     // 底部狀態列（Waydroid 有 app 時隱藏）
     StatusBarWidget {
         id: statusBar
+        z: 30
         visible: !appsAvailable
         anchors.left: parent.left
         anchors.right: parent.right
@@ -156,6 +159,7 @@ ApplicationWindow {
     // ODO：貼在狀態列上（Waydroid 有 app 時隱藏）
     OdometerWidget {
         id: odometer
+        z: 30
         visible: !appsAvailable
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: statusBar.bottom
@@ -167,6 +171,7 @@ ApplicationWindow {
     // ================== 中間速度表 ==================
     SpeedWidget {
         id: speed
+        z: 30
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: timeWidget.bottom
         anchors.topMargin: window.height * 0.005
@@ -180,6 +185,7 @@ ApplicationWindow {
     // ================== 左邊轉速，跟速度表同高 ==================
     TachometerWidget {
         id: tachometer
+        z: 30
         anchors.verticalCenter: speed.verticalCenter
         anchors.verticalCenterOffset: speed.height * 0.026
         height: speed.height * 1.05
@@ -210,6 +216,7 @@ ApplicationWindow {
     // ================== 右邊油量，跟速度表同高 ==================
     FuelGaugeWidget {
         id: fuel
+        z: 30
         anchors.verticalCenter: speed.verticalCenter
         height: speed.height
         width: Math.min(height * 0.38, window.width * 0.14)
@@ -224,6 +231,7 @@ ApplicationWindow {
     // ================== 底部 App Dock（Waydroid 有 app 時顯示） ==================
     AppDock {
         id: appDock
+        z: 40
         visible: appsAvailable  // 只有在有 app 時才顯示
         anchors.left: parent.left
         anchors.right: parent.right
@@ -278,19 +286,13 @@ ApplicationWindow {
     }
     
     // ================== 嵌入的應用視窗區域 ==================
-    // Compositor 模式：顯示 Wayland surface
+    // Compositor 模式：顯示 Wayland surface（底層），儀表 UI 疊在上面
     Item {
         id: appArea
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: timeWidget.bottom
-        anchors.topMargin: 20
-        anchors.bottom: speed.top
-        anchors.bottomMargin: 20
-        anchors.leftMargin: 40
-        anchors.rightMargin: 40
-        visible: compositorMode
-        z: 10
+        anchors.fill: parent
+        visible: compositorMode && compositorSurfaceModel.count > 0
+        z: 5
+        clip: true
 
         Repeater {
             model: compositorSurfaceModel
