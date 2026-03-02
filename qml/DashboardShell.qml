@@ -330,17 +330,42 @@ ApplicationWindow {
             color: "#000000"
         }
 
-        // 顯示所有 toplevel surface（堆疊順序由 Repeater index 決定，後建立的在上層）
-        // 之前只顯示最後一個 surface，但 Waydroid 主視窗不一定是最後建立的。
+        // 顯示所有 toplevel surface
+        // ★ 不用 anchors.fill（這個 Qt 版本的 WaylandQuickItem 不會拉伸 surface 內容），
+        //   改用 Scale transform 手動把 surface 縮放到填滿 appArea。
         Repeater {
             model: compositorSurfaceModel
-            delegate: WaylandQuickItem {
-                surface: model.surface
+            delegate: Item {
+                // Wrapper 填滿 appArea
                 anchors.fill: parent
-                focusOnClick: true
 
-                Component.onCompleted: {
-                    console.log("WaylandQuickItem [toplevel] created for surface:", model.surface)
+                WaylandQuickItem {
+                    id: surfaceItem
+                    surface: model.surface
+                    focusOnClick: true
+                    // 讓 WaylandQuickItem 保持 surface 原始尺寸
+                    // （不用 anchors.fill，因為這個 Qt 不會拉伸 texture）
+                    transformOrigin: Item.TopLeft
+
+                    // 手動縮放到填滿 parent（1280×720）
+                    property real sx: width > 1 ? parent.width / width : 1
+                    property real sy: height > 1 ? parent.height / height : 1
+
+                    transform: Scale {
+                        xScale: surfaceItem.sx
+                        yScale: surfaceItem.sy
+                    }
+
+                    Component.onCompleted: {
+                        console.log("WaylandQuickItem [toplevel] created:",
+                                    "surface =", model.surface,
+                                    "size =", width, "x", height)
+                    }
+
+                    onWidthChanged: {
+                        console.log("Surface resized:", width, "x", height,
+                                    "→ scale:", sx.toFixed(2), "x", sy.toFixed(2))
+                    }
                 }
             }
         }
