@@ -71,49 +71,49 @@ ApplicationWindow {
     // 就會自動處理 frame callback，無需手動呼叫 sendFrameCallbacks()。
     // 之前手動呼叫反而在某些 Qt 版本觸發 TypeError / removeView 警告。
 
-    // Wayland Compositor（使用 QML 的 WaylandCompositor，參考 dashboard_compositor 專案）
+    // Wayland Compositor
     WaylandCompositor {
         id: waylandCompositor
         socketName: "wayland-smartdashboard-0"
-        
-        // 監聯表面創建
-        onSurfaceCreated: function(surface) {
-            console.log("🔵 WaylandCompositor: New surface created")
-            console.log("  Surface object:", surface)
-            console.log("  Current compositorSurfaceModel count:", compositorSurfaceModel.count)
-            
-            // 檢查是否已經存在（避免重複）
+
+        // ★ 不再使用 onSurfaceCreated！
+        //   onSurfaceCreated 會接收所有 wl_surface（包含游標、子表面、popup 等），
+        //   導致游標 surface 被 anchors.fill 拉成全螢幕（巨大游標 glitch）。
+        //   改由 XdgShellHelper.toplevelSurfaceCreated 只接收「真正的 app 視窗」。
+    }
+
+    // ★ 只處理 xdg toplevel surface（過濾掉游標 / popup / 子表面）
+    Connections {
+        target: xdgShellHelper
+        function onToplevelSurfaceCreated(surface) {
+            console.log("🔵 Toplevel surface created:", surface,
+                        "current model count:", compositorSurfaceModel.count)
+
+            // 防重複
             for (var i = 0; i < compositorSurfaceModel.count; i++) {
                 if (compositorSurfaceModel.get(i).surface === surface) {
-                    console.log("  Surface already exists, skipping")
+                    console.log("  Already in model, skip")
                     return
                 }
             }
-            
+
             compositorSurfaceModel.append({ surface: surface })
-            console.log("  After append, compositorSurfaceModel count:", compositorSurfaceModel.count)
-            
-            // 監聽 surface 銷毀事件
+
+            // 監聽銷毀
             surface.surfaceDestroyed.connect(function() {
-                console.log("🔴 WaylandCompositor: Surface destroyed")
-                for (var i = 0; i < compositorSurfaceModel.count; i++) {
-                    if (compositorSurfaceModel.get(i).surface === surface) {
-                        compositorSurfaceModel.remove(i)
-                        console.log("  Removed from model, new count:", compositorSurfaceModel.count)
+                console.log("🔴 Toplevel surface destroyed")
+                for (var j = 0; j < compositorSurfaceModel.count; j++) {
+                    if (compositorSurfaceModel.get(j).surface === surface) {
+                        compositorSurfaceModel.remove(j)
                         break
                     }
                 }
-                // 如果當前表面被銷毀，清除引用
-                if (currentSurface === surface) {
+                if (currentSurface === surface)
                     currentSurface = null
-                }
-                // 如果沒有任何 surface 了，自動退出 appMode
-                if (compositorSurfaceModel.count === 0) {
+                if (compositorSurfaceModel.count === 0)
                     appMode = false
-                }
             })
-            
-            // 如果還沒有當前表面，設置第一個表面為當前表面
+
             if (!currentSurface) {
                 currentSurface = surface
                 console.log("  Set as current surface")
@@ -316,16 +316,22 @@ ApplicationWindow {
         id: appArea
         anchors.fill: parent
         visible: compositorMode && compositorSurfaceModel.count > 0
-        z: 20
+
+        // ★ z-index 切換：
+        //   appMode=false → z=-1（藏在背景漸層後面，但 WaylandQuickItem 仍然在
+        //                         scene graph 裡被渲染，frame callback 繼續送給 Waydroid）
+        //   appMode=true  → z=40（蓋過 dashboardLayer z=30，低於 HUD z=60）
+        z: appMode ? 40 : -1
         clip: true
 
-        // 只有 appMode 時才顯示黑底（非 appMode 時 dashboard 蓋住不需要底色）
+        // 黑底（始終顯示，因為非 appMode 時整個 appArea 已經在背景後面）
         Rectangle {
             anchors.fill: parent
             color: "#000000"
-            visible: appMode
         }
 
+        // 顯示所有 toplevel surface（堆疊順序由 Repeater index 決定，後建立的在上層）
+        // 之前只顯示最後一個 surface，但 Waydroid 主視窗不一定是最後建立的。
         Repeater {
             model: compositorSurfaceModel
             delegate: WaylandQuickItem {
@@ -333,11 +339,8 @@ ApplicationWindow {
                 anchors.fill: parent
                 focusOnClick: true
 
-                // 多個 surface 只顯示最上層
-                visible: index === compositorSurfaceModel.count - 1
-
                 Component.onCompleted: {
-                    console.log("WaylandQuickItem created for surface:", model.surface)
+                    console.log("WaylandQuickItem [toplevel] created for surface:", model.surface)
                 }
             }
         }

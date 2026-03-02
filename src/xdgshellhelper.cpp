@@ -51,11 +51,15 @@ void XdgShellHelper::setCompositor(QObject *comp)
     // 在現有 compositor 上建立 QWaylandXdgShell 擴充
     m_xdgShell = new QWaylandXdgShell(m_waylandCompositor);
 
-    // 輸出 debug 訊息幫助確認
+    // 當 client 建立 xdg_toplevel 時，發射信號給 QML 加入 surface model。
+    // 只有 toplevel（真正的 app 視窗）才會觸發，cursor/subsurface/popup 都不會。
     QObject::connect(m_xdgShell, &QWaylandXdgShell::toplevelCreated,
-                     this, [](QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *xdgSurface) {
+                     this, [this](QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *xdgSurface) {
         Q_UNUSED(toplevel);
-        qInfo() << "XdgShellHelper: xdg toplevel created for surface" << xdgSurface;
+        QWaylandSurface *surface = xdgSurface->surface();
+        qInfo() << "XdgShellHelper: xdg toplevel created, surface =" << surface
+                << "size =" << surface->destinationSize();
+        emit toplevelSurfaceCreated(surface);
     });
 
     qInfo() << "XdgShellHelper: XDG Shell 已啟用";

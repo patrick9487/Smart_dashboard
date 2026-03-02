@@ -8,6 +8,7 @@
 
 #include <QtWaylandCompositor/QWaylandCompositor>
 #include <QtWaylandCompositor/QWaylandSeat>
+#include <QtWaylandCompositor/QWaylandSurface>
 #include <QtWaylandCompositor/QWaylandXdgShell>
 
 // 簡單的 C++ 幫手：在現有的 QML WaylandCompositor 上啟用 xdg-shell
@@ -41,6 +42,9 @@ public:
 signals:
     void compositorChanged();
     void seatChanged();
+    // 只有 XDG toplevel surface（真正的 app 視窗）才會觸發這個信號。
+    // QML 端應該用這個信號來加入 surface model，而不是 WaylandCompositor.onSurfaceCreated。
+    void toplevelSurfaceCreated(QWaylandSurface *surface);
 
 private:
     QPointer<QWaylandCompositor> m_waylandCompositor;
