@@ -53,11 +53,15 @@ ApplicationWindow {
     }
     
     // WaylandOutput - 連接到我們的 ApplicationWindow
+    // 固定對齊 ensureLandscape() 設定的解析度（1280x720），讓 Waydroid 知道螢幕多大。
+    // 若你改了 SMART_DASHBOARD_WAYDROID_SIZE，這裡也要對應修改。
     WaylandOutput {
         id: waylandOutput
         compositor: waylandCompositor
-        sizeFollowsWindow: true
-        window: window  // 連接到 ApplicationWindow
+        sizeFollowsWindow: false
+        window: window
+        geometry: Qt.rect(0, 0, 1280, 720)   // 與 ensureLandscape() 一致
+        scaleFactor: 1
     }
 
     // ================== Wayland 輸入（關鍵） ==================
@@ -324,8 +328,13 @@ ApplicationWindow {
                 surface: model.surface
                 anchors.fill: parent
                 focusOnClick: true
-                // 多個 surface 同時顯示會像「一堆浮動視窗」疊在一起；
-                // 這裡只顯示最上層（最後建立/最新加入 model 的）surface。
+
+                // ★ 關鍵：讓 compositor 控制尺寸，而非跟著 surface 原始解析度
+                // 若設成 true（預設），item 會以 Waydroid 回報的解析度顯示，
+                // 與視窗尺寸不符時會截圖或比例錯。
+                sizeFollowsSurface: false
+
+                // 多個 surface 只顯示最上層
                 visible: index === compositorSurfaceModel.count - 1
 
                 Component.onCompleted: {
