@@ -69,13 +69,12 @@ ApplicationWindow {
     // ================== Frame callback 機制（防止 Waydroid 黑畫面）==================
     // Wayland client 渲染完一幀後會等 compositor 送出 frame callback，
     // 才會繼續渲染下一幀。若 callback 沒有送出，client 停在第一幀然後黑畫面。
-    // 解法：每次視窗完成一次 OpenGL swap 後，通知所有 surface。
+    // 解法：每次視窗完成一次 GPU frame swap 後，對 waylandOutput 送 callback。
     Connections {
         target: window
-        function onFrameSwapped() {
-            if (compositorMode && waylandCompositor) {
-                waylandOutput.frameStarted()
-                waylandCompositor.defaultOutput.sendFrameCallbacks()
+        function onAfterRendering() {
+            if (compositorMode) {
+                waylandOutput.sendFrameCallbacks()
             }
         }
     }
@@ -314,33 +313,42 @@ ApplicationWindow {
     
     // ================== 嵌入的應用視窗區域 ==================
     // Compositor 模式：顯示 Wayland surface（底層），儀表 UI 疊在上面
+    //
+    // ★ 重要：這裡 visible 不能綁 appMode！
+    //   WaylandQuickItem 必須始終在 scene graph 裡被渲染，
+    //   Qt 才會持續把 frame callback 送回 Waydroid。
+    //   如果 visible = false，Waydroid 第一幀後就收不到 callback → 黑畫面。
+    //   appArea 的 z 是 20，dashboardLayer 的 z 是 30，
+    //   沒進 appMode 時 dashboard 自然蓋住它，不用擔心穿透。
     Item {
         id: appArea
         anchors.fill: parent
-        // 只有在 appMode 時才顯示 app（避免「半透明疊加」的觀感）
-        visible: compositorMode && compositorSurfaceModel.count > 0 && appMode
+        visible: compositorMode && compositorSurfaceModel.count > 0
         z: 20
         clip: true
 
-        // 給 app 一個不透明底色，避免 surface 有 alpha 時看到後面的 dashboard
+        // 只有 appMode 時才顯示黑底（非 appMode 時 dashboard 蓋住不需要底色）
         Rectangle {
             anchors.fill: parent
             color: "#000000"
+            visible: appMode
         }
 
         Repeater {
             model: compositorSurfaceModel
             delegate: WaylandQuickItem {
                 surface: model.surface
-                // anchors.fill 讓 Qt 把 surface 縮放填滿 appArea（無需 sizeFollowsSurface）
                 anchors.fill: parent
                 focusOnClick: true
+                // 綁定正確的 output，確保 frame callback 能找到這個 surface
+                output: waylandOutput
 
                 // 多個 surface 只顯示最上層
                 visible: index === compositorSurfaceModel.count - 1
 
                 Component.onCompleted: {
-                    console.log("WaylandQuickItem created for surface:", model.surface)
+                    console.log("WaylandQuickItem created for surface:", model.surface,
+                                "output:", waylandOutput)
                 }
             }
         }
