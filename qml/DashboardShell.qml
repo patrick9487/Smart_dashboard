@@ -324,13 +324,9 @@ ApplicationWindow {
             model: compositorSurfaceModel
             delegate: WaylandQuickItem {
                 surface: model.surface
+                // anchors.fill 讓 Qt 把 surface 縮放填滿 appArea（無需 sizeFollowsSurface）
                 anchors.fill: parent
                 focusOnClick: true
-
-                // ★ 關鍵：讓 compositor 控制尺寸，而非跟著 surface 原始解析度
-                // 若設成 true（預設），item 會以 Waydroid 回報的解析度顯示，
-                // 與視窗尺寸不符時會截圖或比例錯。
-                sizeFollowsSurface: false
 
                 // 多個 surface 只顯示最上層
                 visible: index === compositorSurfaceModel.count - 1
