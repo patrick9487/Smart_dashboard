@@ -5,6 +5,10 @@ Item {
     implicitWidth: 480
     implicitHeight: 272
 
+    // 對外暴露的速度值（之後接真實車速資料時，只要綁定這個 property 即可）
+    // 預設 0 保持目前行為不變
+    property int speed: 0
+
     // 六角形比例控制（固定角度，不隨視窗變）
     property real topMargin:    height * 0.05
     property real bottomMargin: height * 0.05
@@ -46,7 +50,7 @@ Item {
     // 主速度數字
     Text {
         id: speedValue
-        text: "0"
+        text: String(root.speed)
         color: "white"
         font.bold: true
         // 數字更高一點

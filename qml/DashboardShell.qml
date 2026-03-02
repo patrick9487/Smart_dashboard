@@ -29,6 +29,11 @@ ApplicationWindow {
     // 從 C++ 獲取 compositor 模式狀態（因為 QML 中沒有 qEnvironmentVariableIsSet）
     property bool compositorMode: typeof CompositorModeEnabled !== "undefined" ? CompositorModeEnabled : false
     property var currentSurface: null
+
+    // App 全螢幕模式（你期望：打開 app 後，只保留「瀏海」HUD，其餘儀表淡出）
+    // - 由 Dock 點擊 app 時進入
+    // - 點返回鍵退出
+    property bool appMode: false
     
     // 調試：顯示當前模式狀態（可在 UI 中顯示）
     property string modeStatus: compositorMode ? 
@@ -101,6 +106,10 @@ ApplicationWindow {
                 if (currentSurface === surface) {
                     currentSurface = null
                 }
+                // 如果沒有任何 surface 了，自動退出 appMode
+                if (compositorSurfaceModel.count === 0) {
+                    appMode = false
+                }
             })
             
             // 如果還沒有當前表面，設置第一個表面為當前表面
@@ -122,163 +131,171 @@ ApplicationWindow {
         }
     }
 
-    // 左上時間
-    TimeWidget {
-        id: timeWidget
+    // ================== Dashboard Layer（可淡出） ==================
+    Item {
+        id: dashboardLayer
+        anchors.fill: parent
         z: 30
-        anchors.left: parent.left
-        anchors.leftMargin: 24
-        anchors.top: parent.top
-        anchors.topMargin: 5
-    }
+        opacity: appMode ? 0.0 : 1.0
+        visible: opacity > 0.01
 
-    // 調試：顯示當前模式（右上角）
-    Text {
-        id: modeIndicator
-        z: 30
-        anchors.right: parent.right
-        anchors.rightMargin: 24
-        anchors.top: parent.top
-        anchors.topMargin: 5
-        text: modeStatus
-        color: compositorMode ? "#4a9eff" : "#f7b35a"
-        font.pixelSize: 12
-        visible: true  // 可以設置為 false 來隱藏
-    }
+        Behavior on opacity {
+            NumberAnimation { duration: 260; easing.type: Easing.InOutCubic }
+        }
 
-    // 底部狀態列（Waydroid 有 app 時隱藏）
-    StatusBarWidget {
-        id: statusBar
-        z: 30
-        visible: !appsAvailable
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-    }
+        // 左上時間
+        TimeWidget {
+            id: timeWidget
+            anchors.left: parent.left
+            anchors.leftMargin: 24
+            anchors.top: parent.top
+            anchors.topMargin: 5
+        }
 
-    // ODO：貼在狀態列上（Waydroid 有 app 時隱藏）
-    OdometerWidget {
-        id: odometer
-        z: 30
-        visible: !appsAvailable
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: statusBar.bottom
-        anchors.bottomMargin: 0
-        width: parent.width * 0.35
-        height: parent.height * 0.17
-    }
+        // 調試：顯示當前模式（右上角）
+        Text {
+            id: modeIndicator
+            anchors.right: parent.right
+            anchors.rightMargin: 24
+            anchors.top: parent.top
+            anchors.topMargin: 5
+            text: modeStatus
+            color: compositorMode ? "#4a9eff" : "#f7b35a"
+            font.pixelSize: 12
+            visible: true  // 可以設置為 false 來隱藏
+        }
 
-    // ================== 中間速度表 ==================
-    SpeedWidget {
-        id: speed
-        z: 30
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: timeWidget.bottom
-        anchors.topMargin: window.height * 0.005
-        anchors.bottom: appsAvailable ? appDock.top : odometer.top
-        anchors.bottomMargin: appsAvailable ? window.height * 0.05 : window.height * 0.05
+        // 底部狀態列（Waydroid 有 app 時隱藏）
+        StatusBarWidget {
+            id: statusBar
+            visible: !appsAvailable
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+        }
 
-        // 原本 0.5 太寬，改 0.8 留一點給左右條
-        width: parent.width * 0.8
-    }
+        // ODO：貼在狀態列上（Waydroid 有 app 時隱藏）
+        OdometerWidget {
+            id: odometer
+            visible: !appsAvailable
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: statusBar.bottom
+            anchors.bottomMargin: 0
+            width: parent.width * 0.35
+            height: parent.height * 0.17
+        }
 
-    // ================== 左邊轉速，跟速度表同高 ==================
-    TachometerWidget {
-        id: tachometer
-        z: 30
-        anchors.verticalCenter: speed.verticalCenter
-        anchors.verticalCenterOffset: speed.height * 0.026
-        height: speed.height * 1.05
-        width: Math.min(height * 0.38, window.width * 0.14)
+        // ================== 中間速度表 ==================
+        SpeedWidget {
+            id: speed
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: timeWidget.bottom
+            anchors.topMargin: window.height * 0.005
+            anchors.bottom: appsAvailable ? appDock.top : odometer.top
+            anchors.bottomMargin: window.height * 0.05
 
-        anchors.right: speed.left
+            // 原本 0.5 太寬，改 0.8 留一點給左右條
+            width: parent.width * 0.8
+        }
 
-        // 可調參數
-        property real baseGapPx: 20                 // 固定基準距離
-        property real scaleFactor: 0.005            // 跟 speed 寬度成比例
-        property real scaleCap: 15                  // 最多增加的像素上限
-        property real scaleGapPx: Math.min(scaleCap, speed.width * scaleFactor)
+        // ================== 左邊轉速，跟速度表同高 ==================
+        TachometerWidget {
+            id: tachometer
+            anchors.verticalCenter: speed.verticalCenter
+            anchors.verticalCenterOffset: speed.height * 0.026
+            height: speed.height * 1.05
+            width: Math.min(height * 0.38, window.width * 0.14)
 
-        property real overlapRatio: 0.70            // 插入比例
-        property real safetyPx: 8
-        property real maxInsertRatio: 0.7
+            anchors.right: speed.left
 
-        property real desiredRM: baseGapPx + scaleGapPx
-                                 - (tachometer.width * overlapRatio)
-                                 - safetyPx
+            // 可調參數
+            property real baseGapPx: 20                 // 固定基準距離
+            property real scaleFactor: 0.005            // 跟 speed 寬度成比例
+            property real scaleCap: 15                  // 最多增加的像素上限
+            property real scaleGapPx: Math.min(scaleCap, speed.width * scaleFactor)
 
-        anchors.rightMargin: Math.max(
-                                -tachometer.width * maxInsertRatio,
-                                desiredRM
-                             )
-    }
+            property real overlapRatio: 0.70            // 插入比例
+            property real safetyPx: 8
+            property real maxInsertRatio: 0.7
 
-    // ================== 右邊油量，跟速度表同高 ==================
-    FuelGaugeWidget {
-        id: fuel
-        z: 30
-        anchors.verticalCenter: speed.verticalCenter
-        height: speed.height
-        width: Math.min(height * 0.38, window.width * 0.14)
-        anchors.left: speed.right
+            property real desiredRM: baseGapPx + scaleGapPx
+                                     - (tachometer.width * overlapRatio)
+                                     - safetyPx
 
-        // 初始時略微向左插入速度區塊，畫面變寬時慢慢往右「拉開」一點距離
-        property real baseOverlap: -width * 0.55                      // 基本向左重疊量（負值越大越往左）
-        property real extraGap: Math.min(40, Math.max(0, (window.width - 1100) * 0.06))
-        anchors.leftMargin: baseOverlap + extraGap
-    }
+            anchors.rightMargin: Math.max(
+                                    -tachometer.width * maxInsertRatio,
+                                    desiredRM
+                                 )
+        }
 
-    // ================== 底部 App Dock（Waydroid 有 app 時顯示） ==================
-    AppDock {
-        id: appDock
-        z: 40
-        visible: appsAvailable  // 只有在有 app 時才顯示
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: 0
-        anchors.rightMargin: 0
-        anchors.bottomMargin: 16   // 與視窗底部保留一點空間
-        height: 150                // 稍微加高，讓 Dock 看起來更穩
-        
-        // 當點擊 AppIcon 時，創建嵌入器或查找表面
-        onAppClicked: function(packageName) {
-            console.log("========================================")
-            console.log("DashboardShell: App clicked, package:", packageName)
-            console.log("DashboardShell: Compositor mode:", compositorMode)
-            console.log("DashboardShell: Current surface count:", compositorSurfaceModel.count)
+        // ================== 右邊油量，跟速度表同高 ==================
+        FuelGaugeWidget {
+            id: fuel
+            anchors.verticalCenter: speed.verticalCenter
+            height: speed.height
+            width: Math.min(height * 0.38, window.width * 0.14)
+            anchors.left: speed.right
+
+            // 初始時略微向左插入速度區塊，畫面變寬時慢慢往右「拉開」一點距離
+            property real baseOverlap: -width * 0.55                      // 基本向左重疊量（負值越大越往左）
+            property real extraGap: Math.min(40, Math.max(0, (window.width - 1100) * 0.06))
+            anchors.leftMargin: baseOverlap + extraGap
+        }
+
+        // ================== 底部 App Dock（Waydroid 有 app 時顯示） ==================
+        AppDock {
+            id: appDock
+            visible: appsAvailable  // 只有在有 app 時才顯示
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: 0
+            anchors.rightMargin: 0
+            anchors.bottomMargin: 16   // 與視窗底部保留一點空間
+            height: 150                // 稍微加高，讓 Dock 看起來更穩
             
-            if (compositorMode && waylandCompositor) {
-                // Compositor 模式：啟動應用並等待表面創建
-                console.log("DashboardShell: Using compositor mode, launching app:", packageName)
+            // 當點擊 AppIcon 時，創建嵌入器或查找表面
+            onAppClicked: function(packageName) {
+                console.log("========================================")
+                console.log("DashboardShell: App clicked, package:", packageName)
+                console.log("DashboardShell: Compositor mode:", compositorMode)
+                console.log("DashboardShell: Current surface count:", compositorSurfaceModel.count)
                 
-                // 啟動應用（應用會連接到我們的 compositor）
-                if (waydroidAvailable) {
-                    console.log("DashboardShell: Launching app via Waydroid.launchApp...")
-                    Waydroid.launchApp(packageName)
-                    console.log("DashboardShell: launchApp called, waiting for surface...")
+                if (compositorMode && waylandCompositor) {
+                    // 進入 appMode（你希望：app 全屏 + HUD）
+                    appMode = true
+
+                    // Compositor 模式：啟動應用並等待表面創建
+                    console.log("DashboardShell: Using compositor mode, launching app:", packageName)
                     
-                    // 等待表面創建（通過監聽 surfaceCreated 信號）
-                    // 當表面創建時，waylandCompositor 會自動處理
-                }
-            } else {
-                // 視窗疊加模式
-                console.log("DashboardShell: Using window overlay mode")
-                if (waydroidAvailable) {
-                    // 如果已經有嵌入器，先停止它
-                    if (currentEmbedder) {
-                        currentEmbedder.stopEmbedding()
-                        currentEmbedder = null
+                    // 啟動應用（應用會連接到我們的 compositor）
+                    if (waydroidAvailable) {
+                        console.log("DashboardShell: Launching app via Waydroid.launchApp...")
+                        Waydroid.launchApp(packageName)
+                        console.log("DashboardShell: launchApp called, waiting for surface...")
+                        
+                        // 等待表面創建（通過監聽 surfaceCreated 信號）
+                        // 當表面創建時，waylandCompositor 會自動處理
                     }
-                    
-                    // 創建新的嵌入器
-                    currentEmbedder = Waydroid.createWindowEmbedder(packageName)
-                    if (currentEmbedder) {
-                        console.log("DashboardShell: Embedder created successfully, starting embedding...")
-                        // 啟動嵌入過程（這會啟動應用並開始查找視窗）
-                        currentEmbedder.startEmbedding()
-                    } else {
-                        console.error("DashboardShell: Failed to create embedder")
+                } else {
+                    // 視窗疊加模式
+                    console.log("DashboardShell: Using window overlay mode")
+                    if (waydroidAvailable) {
+                        // 如果已經有嵌入器，先停止它
+                        if (currentEmbedder) {
+                            currentEmbedder.stopEmbedding()
+                            currentEmbedder = null
+                        }
+                        
+                        // 創建新的嵌入器
+                        currentEmbedder = Waydroid.createWindowEmbedder(packageName)
+                        if (currentEmbedder) {
+                            console.log("DashboardShell: Embedder created successfully, starting embedding...")
+                            // 啟動嵌入過程（這會啟動應用並開始查找視窗）
+                            currentEmbedder.startEmbedding()
+                        } else {
+                            console.error("DashboardShell: Failed to create embedder")
+                        }
                     }
                 }
             }
@@ -290,9 +307,16 @@ ApplicationWindow {
     Item {
         id: appArea
         anchors.fill: parent
-        visible: compositorMode && compositorSurfaceModel.count > 0
-        z: 5
+        // 只有在 appMode 時才顯示 app（避免「半透明疊加」的觀感）
+        visible: compositorMode && compositorSurfaceModel.count > 0 && appMode
+        z: 20
         clip: true
+
+        // 給 app 一個不透明底色，避免 surface 有 alpha 時看到後面的 dashboard
+        Rectangle {
+            anchors.fill: parent
+            color: "#000000"
+        }
 
         Repeater {
             model: compositorSurfaceModel
@@ -307,6 +331,71 @@ ApplicationWindow {
                 Component.onCompleted: {
                     console.log("WaylandQuickItem created for surface:", model.surface)
                 }
+            }
+        }
+    }
+
+    // ================== App HUD（瀏海 + 返回鍵 / Activate bar）==================
+    Item {
+        id: appHud
+        z: 60
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 78
+        visible: compositorMode && appMode
+        opacity: visible ? 1.0 : 0.0
+        y: visible ? 0 : -height
+
+        Behavior on opacity {
+            NumberAnimation { duration: 260; easing.type: Easing.InOutCubic }
+        }
+        Behavior on y {
+            NumberAnimation { duration: 260; easing.type: Easing.InOutCubic }
+        }
+
+        // 瀏海底座
+        Rectangle {
+            id: notch
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 10
+            width: 260
+            height: 54
+            radius: 18
+            color: "#111219"
+            border.color: "#3a3f4a"
+            border.width: 1
+            opacity: 0.92
+        }
+
+        // 小時速（先用 SpeedWidget.speed，之後接真實數據不用改 UI）
+        Row {
+            anchors.centerIn: notch
+            spacing: 10
+            Text {
+                text: String(speed.speed)
+                color: "white"
+                font.bold: true
+                font.pixelSize: 26
+            }
+            Text {
+                text: "km/h"
+                color: "#d5d8dc"
+                font.pixelSize: 14
+                anchors.baseline: parent.children[0].baseline
+            }
+        }
+
+        // 返回 / Activate bar（先做返回鍵，之後可擴展為 activate bar）
+        Button {
+            id: backButton
+            anchors.left: parent.left
+            anchors.leftMargin: 18
+            anchors.verticalCenter: notch.verticalCenter
+            text: qsTr("返回")
+            onClicked: {
+                appMode = false
             }
         }
     }
