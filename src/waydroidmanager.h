@@ -85,7 +85,18 @@ public:
     Q_INVOKABLE void startSession() { QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("container"), QStringLiteral("start")}); }
     Q_INVOKABLE void stopSession() { QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("container"), QStringLiteral("stop")}); }
     Q_INVOKABLE void showFullUI() { QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("show-full-ui")}); }
-    Q_INVOKABLE void launchApp(const QString &pkg) { QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("app"), QStringLiteral("launch"), pkg}); }
+    Q_INVOKABLE void launchApp(const QString &pkg) {
+        // 先嘗試把 Android 顯示鎖定為橫向（避免 app 以直向 UI/比例啟動）
+        ensureLandscape();
+        QProcess::startDetached(QStringLiteral("waydroid"), {QStringLiteral("app"), QStringLiteral("launch"), pkg});
+    }
+
+    // 強制 Waydroid / Android 顯示為橫向（landscape）
+    // 可用環境變數調整：
+    // - SMART_DASHBOARD_WAYDROID_SIZE=1280x720
+    // - SMART_DASHBOARD_WAYDROID_DENSITY=240
+    // - SMART_DASHBOARD_WAYDROID_ROTATION=1  (Android user_rotation: 0/1/2/3)
+    Q_INVOKABLE void ensureLandscape();
     
     // 創建視窗嵌入器（返回給 QML 使用）
     Q_INVOKABLE QObject* createWindowEmbedder(const QString &pkg);
@@ -110,6 +121,8 @@ public slots:
                 qDebug() << "WaydroidManager::checkStatus() - state changed to:" << m_running;
                 emit runningChanged();
                 if (m_running) {
+                    // 每次 session 重新跑起來都重新套用橫向設定
+                    m_landscapeApplied = false;
                     // Waydroid 剛啟動，等待 8 秒讓它完全初始化
                     // （"Failed to get service waydroidplatform" 表示還沒準備好）
                     m_startupDelayDone = false;
@@ -117,11 +130,13 @@ public slots:
                     qDebug() << "WaydroidManager::checkStatus() - Waydroid just started, waiting 8s for initialization...";
                     QTimer::singleShot(8000, this, [this]() {
                         m_startupDelayDone = true;
-                        qDebug() << "WaydroidManager: Startup delay done, now refreshing apps";
+                        qDebug() << "WaydroidManager: Startup delay done, applying landscape + refreshing apps";
+                        ensureLandscape();
                         refreshApps();
                     });
                 } else {
                     m_startupDelayDone = false;
+                    m_landscapeApplied = false;
                     m_apps->setApps({});
                 }
             } else if (m_running && m_startupDelayDone && m_refreshRetryCount < 10) {
@@ -339,4 +354,5 @@ private:
     QTimer *m_refreshTimeout = nullptr;
     bool m_startupDelayDone;
     int m_refreshRetryCount;
+    bool m_landscapeApplied = false;
 };
