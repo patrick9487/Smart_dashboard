@@ -24,6 +24,21 @@ qt_add_executable(appSmartDashboard
     # 直接使用 QtWayland.Compositor 的 QML WaylandCompositor
 )
 
+# 取得 git commit（用於啟動時顯示，避免「跑到哪個版本」搞混）
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE SMARTDASHBOARD_GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT SMARTDASHBOARD_GIT_COMMIT)
+    set(SMARTDASHBOARD_GIT_COMMIT "unknown")
+endif()
+target_compile_definitions(appSmartDashboard PRIVATE
+    SMARTDASHBOARD_GIT_COMMIT="${SMARTDASHBOARD_GIT_COMMIT}"
+)
+
 # 添加資源文件（配置文件）
 qt_add_resources(appSmartDashboard "config"
     PREFIX "/"

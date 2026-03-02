@@ -58,6 +58,12 @@ static void dumpQmlResources()
 
 int main(int argc, char *argv[])
 {
+    qDebug().noquote()
+        << "SmartDashboard build info:"
+        << "commit=" << SMARTDASHBOARD_GIT_COMMIT
+        << "exe=" << QCoreApplication::applicationFilePath()
+        << "cwd=" << QDir::currentPath();
+
     // 檢查是否啟用 compositor 模式
     bool useCompositorMode = qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR");
     
