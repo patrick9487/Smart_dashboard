@@ -59,7 +59,17 @@ static void dumpQmlResources()
 int main(int argc, char *argv[])
 {
     // 檢查是否啟用 compositor 模式
+    // - 預設：看環境變數 SMART_DASHBOARD_COMPOSITOR
+    // - 允許 CLI 覆寫：--compositor / --no-compositor
     bool useCompositorMode = qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR");
+    for (int i = 1; i < argc; i++) {
+        const QString arg = QString::fromLocal8Bit(argv[i]);
+        if (arg == QStringLiteral("--compositor")) {
+            useCompositorMode = true;
+        } else if (arg == QStringLiteral("--no-compositor")) {
+            useCompositorMode = false;
+        }
+    }
     
     // 如果啟用 compositor 模式，設置 socket 名稱
     // 參考 dashboard_compositor 專案：使用 QT_WAYLAND_COMPOSITOR_SOCKET_NAME 環境變量
