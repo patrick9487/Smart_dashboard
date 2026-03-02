@@ -8,8 +8,8 @@ import "widgets"
 ApplicationWindow {
     id: window
     visible: true
-    width: 1170
-    height: 665
+    width: 1280    // 與 ensureLandscape() / SMART_DASHBOARD_WAYDROID_SIZE 一致
+    height: 720
     title: "Smart Dashboard"
     color: "#101015"
 
@@ -53,15 +53,13 @@ ApplicationWindow {
     }
     
     // WaylandOutput - 連接到我們的 ApplicationWindow
-    // 固定對齊 ensureLandscape() 設定的解析度（1280x720），讓 Waydroid 知道螢幕多大。
-    // 若你改了 SMART_DASHBOARD_WAYDROID_SIZE，這裡也要對應修改。
+    // sizeFollowsWindow: true → compositor 把視窗尺寸（1280×720）回報給 Waydroid，
+    // 搭配 WaylandQuickItem 的 sizeFollowsSurface: false，surface 就會自動縮放填滿。
     WaylandOutput {
         id: waylandOutput
         compositor: waylandCompositor
-        sizeFollowsWindow: false
+        sizeFollowsWindow: true
         window: window
-        geometry: Qt.rect(0, 0, 1280, 720)   // 與 ensureLandscape() 一致
-        scaleFactor: 1
     }
 
     // ================== Wayland 輸入（關鍵） ==================
