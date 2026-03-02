@@ -58,12 +58,6 @@ static void dumpQmlResources()
 
 int main(int argc, char *argv[])
 {
-    qDebug().noquote()
-        << "SmartDashboard build info:"
-        << "commit=" << SMARTDASHBOARD_GIT_COMMIT
-        << "exe=" << QCoreApplication::applicationFilePath()
-        << "cwd=" << QDir::currentPath();
-
     // 檢查是否啟用 compositor 模式
     bool useCompositorMode = qEnvironmentVariableIsSet("SMART_DASHBOARD_COMPOSITOR");
     
@@ -97,6 +91,15 @@ int main(int argc, char *argv[])
     }
     
     QGuiApplication app(argc, argv);
+
+    // QCoreApplication::applicationFilePath() 在 app 建立後才保證可用
+    qDebug().noquote()
+        << "SmartDashboard build info:"
+        << "commit=" << SMARTDASHBOARD_GIT_COMMIT
+        << "exe=" << QCoreApplication::applicationFilePath()
+        << "appDir=" << QCoreApplication::applicationDirPath()
+        << "argv0=" << (argc > 0 ? QString::fromLocal8Bit(argv[0]) : QStringLiteral(""))
+        << "cwd=" << QDir::currentPath();
 
     // 1) 載入設定（先從 qrc，再依序嘗試 bundle/當前目錄）
     AppConfig config;
